@@ -1,0 +1,25 @@
+var x = [10, 20, 30, 40]
+
+^^
+methods represent a specific property of an object and a way to interact with it. 
+Numbers do not have a length, so the corresponding method does not work with them; 
+this is not a method in the OOP sense.
+^^
+
+movoutln("Array length: " + x.len())
+movoutln("Default array: " + x)
+
+x.push(50)
+movoutln("Array after push: " + x)
+
+var accumulator = x.pop()
+movoutln("Popped value: " + accumulator)
+
+x[2] = 100
+movoutln("Changed array: " + x)
+
+movoutln(x[1])
+
+// Arrays can hold values of any type
+const mixed = [10, "hello", 3.14, <1>]
+movoutln("Mixed array: " + mixed)

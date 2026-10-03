@@ -1,0 +1,35 @@
+{
+    "name": "eval",
+    "version": "0.1.0",
+    "author": "Mashrest",
+    "description": "Standard library for mathematical operations and expression parsing.",
+    "requires": {
+        "mashrest_v": "0.1.0",
+        "abi": 1
+    },
+    "functions": {
+        "eval": {
+            "description": {
+                "en": "Parses a mathematical expression and returns the AST (Abstract Syntax Tree) as a dictionary.",
+                "ru": "Разбирает математическое выражение и возвращает AST (абстрактное синтаксическое дерево) в виде словаря."
+            },
+            "example": "e::eval(\"2 + 3 * 4\")",
+            "args": [
+                { "name": "expression", "type": "string", "required": true }
+            ],
+            "returns": "dict"
+        },
+
+        "eval_ast": {
+            "description": {
+                "en": "Evaluates an AST (Abstract Syntax Tree) and returns the computed number.",
+                "ru": "Вычисляет AST (абстрактное синтаксическое дерево) и возвращает полученное число."
+            },
+            "example": "e::eval_ast(ast)",
+            "args": [
+                { "name": "ast", "type": "dict", "required": true }
+            ],
+            "returns": "float|integer"
+        }
+    }
+}

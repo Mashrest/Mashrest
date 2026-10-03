@@ -1,0 +1,125 @@
+{
+  "name": "StringBuilder",
+  "version": "0.1.0",
+  "author": "Mashrest",
+  "description": "Efficient string concatenation library. Use StringBuilder for loops to avoid O(n²) copying.",
+  "requires": {
+    "mashrest_v": "0.1.0",
+    "abi": 1
+  },
+  "functions": {
+    "new": {
+      "description": "Creates a new empty StringBuilder (with capacity or not).",
+      "example": "sb::new(32)",
+      "args": [
+        { "name": "capacity", "type": "integer", "required": false, "default": 16 }
+      ],
+      "returns": "native"
+    },
+
+    "append": {
+      "description": "Appends any value to the StringBuilder.",
+      "example": "sb::append(builder, 123)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true },
+        { "name": "value", "type": "any", "required": true }
+      ],
+      "returns": "native"
+    },
+
+    "append_str": {
+      "description": "Appends a string to the StringBuilder.",
+      "example": "sb::append_str(builder, \"hello\")",
+      "args": [
+        { "name": "builder", "type": "native", "required": true },
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "native"
+    },
+
+    "append_char": {
+      "description": "Appends a single character (by ASCII code) to the StringBuilder.",
+      "example": "sb::append_char(builder, 65)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true },
+        { "name": "code", "type": "integer", "required": true }
+      ],
+      "returns": "native"
+    },
+
+    "build": {
+      "description": "Builds and returns the resulting string.",
+      "example": "sb::build(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "clear": {
+      "description": "Clears the contents of the StringBuilder.",
+      "example": "sb::clear(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "null"
+    },
+
+    "length": {
+      "description": "Returns the current length of the StringBuilder.",
+      "example": "sb::length(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "capacity": {
+      "description": "Returns the current capacity of the StringBuilder.",
+      "example": "sb::capacity(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "ensure_capacity": {
+      "description": "Ensures the StringBuilder has at least the given capacity.",
+      "example": "sb::ensure_capacity(builder, 128)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true },
+        { "name": "capacity", "type": "integer", "required": true }
+      ],
+      "returns": "null"
+    },
+
+    "reset": {
+      "description": "Resets the StringBuilder to its initial state.",
+      "example": "sb::reset(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "null"
+    },
+
+    "reverse": {
+      "description": "Reverses the contents of the StringBuilder.",
+      "example": "sb::reverse(builder)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true }
+      ],
+      "returns": "native"
+    },
+
+    "substring": {
+      "description": "Returns a substring of the StringBuilder contents.",
+      "example": "sb::substring(builder, 0, 5)",
+      "args": [
+        { "name": "builder", "type": "native", "required": true },
+        { "name": "start", "type": "integer", "required": true },
+        { "name": "end", "type": "integer", "required": false, "default": -1 }
+      ],
+      "returns": "native"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "arrays",
+  "version": "0.1.0",
+  "author": "Mashrest",
+  "description": "Internal library for work with arrays and sorting algorithms.",
+  "requires": {
+    "mashrest_v": "0.1.0",
+    "abi": 1
+  },
+  "functions": {
+    "bubble_sort_int": {
+      "description": {
+        "en": "Sorts an array of integers in ascending order using the bubble sort algorithm.",
+        "ru": "Сортирует массив целых чисел по возрастанию алгоритмом пузырьковой сортировки."
+      },
+      "example": "a::bubble_sort_int([3, 1, 2] #i) -> [1, 2, 3]",
+      "args": [
+        { "name": "array", "type": "array", "required": true }
+      ],
+      "returns": "array"
+    },
+
+    "bubble_sort": {
+      "description": {
+        "en": "Sorts an array in ascending order using the bubble sort algorithm.",
+        "ru": "Сортирует массив по возрастанию алгоритмом пузырьковой сортировки."
+      },
+      "example": "a::bubble_sort([3, 1, 2]) -> [1, 2, 3]",
+      "args": [
+        { "name": "array", "type": "array", "required": true }
+      ],
+      "returns": "array"
+    },
+
+    "insertion_sort": {
+      "description": {
+        "en": "Sorts an array in ascending order using the insertion sort algorithm.",
+        "ru": "Сортирует массив по возрастанию алгоритмом сортировки вставками."
+      },
+      "example": "a::insertion_sort([3, 1, 2]) -> [1, 2, 3]",
+      "args": [
+        { "name": "array", "type": "array", "required": true }
+      ],
+      "returns": "array"
+    },
+
+    "test_partition": {
+      "description": {
+        "en": "Partitions an array around a pivot element and returns the rearranged array (used for testing).",
+        "ru": "Разбивает массив относительно опорного элемента и возвращает переставленный массив (используется для тестирования)."
+      },
+      "example": "a::test_partition([3, 1, 2]) -> [1, 2, 3]",
+      "args": [
+        { "name": "array", "type": "array", "required": true }
+      ],
+      "returns": "array"
+    },
+
+    "pdq_sort": {
+      "description": {
+        "en": "Sorts an array in ascending order using the pattern-defeating quicksort (PDQ) algorithm.",
+        "ru": "Сортирует массив по возрастанию алгоритмом pattern-defeating quicksort (PDQ)."
+      },
+      "example": "a::pdq_sort([3, 1.5, 2]) -> [1.5, 2, 3]",
+      "args": [
+        { "name": "array", "type": "array", "required": true }
+      ],
+      "returns": "array"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+import StringBuilder as sb // with alias
+import math // without alias
+
+
+^^ the syntax here is "module::function(arguments)" ^^
+movoutln("Clamp -39 between -100 and 20: " + math::clamp(-100, -39, 20))
+movoutln("Minimum value: " + math::min(-20, 59))
+
+var builder = sb::new() // using the alias
+
+// Not recommended, but you can do it
+var text = sb::append(builder, "Hello")
+sb::append(text, " World!")
+movoutln(sb::build(builder))
+
+// Also you can chain operators
+var chain = sb::new()->sb::append("This is ")->sb::append("syntax sugar!")->sb::build()
+movoutln(chain)
+
+// You can split
+var chain_1 = sb::new()->sb::append("This is ")
+chain = chain_1->sb::append("power of splitting")->sb::build()
+movoutln(chain)

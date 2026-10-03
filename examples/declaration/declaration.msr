@@ -1,0 +1,15 @@
+// This code shows how can you assign value to a variable
+
+var x = 100
+const y = 200 
+
+// y = 300
+// Cannot assign value to the constant!
+
+// move answer to the console
+movoutln("x: " + x)
+movoutln("y: " + y)
+
+// move to the console without newline
+movout("No newline?")
+movoutln(" Yes")

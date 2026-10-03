@@ -1,0 +1,65 @@
+const st = "Hello"
+
+^^ if conditions ^^
+if st == "Hello"
+    movoutln("Hello!")
+elif st == "Bye"
+    movoutln("Bye!")
+else 
+    movoutln("???")
+
+
+
+
+
+^^ 
+also, you cannot redeclare var/const in one scope like this:
+
+var x = 100
+var x = 500
+
+this is incorrect. but you can in nested scopes
+
+var x = 100
+if (...)
+    var x = "Hello"
+    movoutln(x)
+
+what will print 'movoutln()'? 
+'Hello', because the second variable declaration shadows the first.
+^^
+
+
+
+var i = 0
+
+^^ basic loop ^^
+while i < 4
+    movoutln(i)
+    i++
+
+
+^^ will stop at 2 ^^
+movoutln("break")
+i = 0
+while i < 5
+    if i == 2
+        break
+    i++
+
+movoutln(i) // 2
+
+
+^^ this loop will skip an iteration ^^
+movoutln("continue")
+i = 0
+while i < 5
+    i++
+    if i == 3
+        continue
+    movoutln(i)
+
+// this 'pass' operator doesn't do anything
+// you can put this as plug
+if <1>
+    pass

@@ -1,0 +1,205 @@
+#include "API/msrest_api.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include <math.h>   
+#include <string.h>  
+#include <ctype.h>      
+
+/* ==================== ПАРСИНГ МАТЕМАТИКИ ==================== */
+
+typedef struct Parser {
+    const char* input;
+    size_t pos;
+    size_t len;
+} Parser;
+
+/* Пропуск пробелов */
+static void skip_spaces(Parser* p) {
+    while (p->pos < p->len && isspace(p->input[p->pos])) {
+        p->pos++;
+    }
+}
+
+/* Проверка, что текущий символ - цифра */
+static int is_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+/* Парсинг числа */
+static double parse_number(Parser* p) {
+    skip_spaces(p);
+    const char* start = p->input + p->pos;
+    char* end;
+    double num = strtod(start, &end);
+    p->pos += (end - start);
+    return num;
+}
+
+/* Создание узла-числа */
+static Value make_number_node(MsrestAPI* api, double value) {
+    Value node = api->dict_new();
+    api->dict_set(node, api->string_new_len("type", 4), api->string_new_len("number", 6));
+    api->dict_set(node, api->string_new_len("value", 5), api->float_to_value(value));
+    return node;
+}
+
+/* Создание узла-бинарной операции */
+static Value make_binop_node(MsrestAPI* api, const char* op, Value left, Value right) {
+    Value node = api->dict_new();
+    api->dict_set(node, api->string_new_len("type", 4), api->string_new_len("binop", 5));
+    api->dict_set(node, api->string_new_len("op", 2), api->string_new_len(op, strlen(op)));
+    api->dict_set(node, api->string_new_len("left", 4), left);
+    api->dict_set(node, api->string_new_len("right", 5), right);
+    return node;
+}
+
+/* Парсинг выражения (рекурсивный спуск) */
+static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence);
+
+/* Парсинг первичного выражения (число или скобки) */
+static Value parse_primary(MsrestAPI* api, Parser* p) {
+    skip_spaces(p);
+    
+    if (p->pos >= p->len) {
+        api->msrest_panic("eval(): unexpected end of expression");
+    }
+    
+    char c = p->input[p->pos];
+    
+    /* Число */
+    if (is_digit(c) || c == '.') {
+        double num = parse_number(p);
+        return make_number_node(api, num);
+    }
+    
+    /* Скобки */
+    if (c == '(') {
+        p->pos++;  // пропускаем '('
+        Value node = parse_expression(api, p, 0);
+        skip_spaces(p);
+        if (p->pos >= p->len || p->input[p->pos] != ')') {
+            api->msrest_panic("eval(): expected ')'");
+        }
+        p->pos++;  // пропускаем ')'
+        return node;
+    }
+    
+    api->msrest_panic("eval(): unexpected character '%c'", c);
+}
+
+/* Проверка, является ли символ оператором */
+static int is_operator(char c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
+
+/* Получение приоритета оператора */
+static int get_precedence(char op) {
+    switch (op) {
+        case '+':
+        case '-': return 1;
+        case '*':
+        case '/': return 2;
+        case '^': return 3;
+        default: return 0;
+    }
+}
+
+/* Парсинг выражения с учётом приоритетов */
+static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
+    /* Парсим левую часть */
+    Value left = parse_primary(api, p);
+    
+    while (1) {
+        skip_spaces(p);
+        if (p->pos >= p->len) break;
+        
+        char op = p->input[p->pos];
+        if (!is_operator(op)) break;
+        
+        int prec = get_precedence(op);
+        if (prec < min_precedence) break;
+        
+        p->pos++;  // пропускаем оператор
+        
+        /* Парсим правую часть с учётом приоритета */
+        Value right = parse_expression(api, p, prec + 1);
+        
+        /* Создаём узел бинарной операции */
+        char op_str[2] = {op, '\0'};
+        left = make_binop_node(api, op_str, left, right);
+    }
+    
+    return left;
+}
+
+/* Экспортируемая функция eval */
+EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
+    api->check_argc(argc, 1);
+    api->check_type(MSREST_STRING, args[0].type);
+    
+    const char* expr = api->string_data(args[0]);
+    size_t len = api->string_bytes(args[0]);
+    
+    if (len == 0) {
+        api->msrest_panic("eval(): empty expression");
+    }
+    
+    Parser parser;
+    parser.input = expr;
+    parser.pos = 0;
+    parser.len = len;
+    
+    /* Парсим выражение */
+    Value ast = parse_expression(api, &parser, 0);
+    
+    /* Проверяем, что дошли до конца */
+    skip_spaces(&parser);
+    if (parser.pos < parser.len) {
+        api->msrest_panic("eval(): unexpected characters after expression");
+    }
+    
+    return ast;
+}
+
+
+/* Вычисление AST */
+static double eval_ast_node(MsrestAPI* api, Value node) {
+    Value type_val = api->dict_get(node, api->string_new_len("type", 4));
+    const char* type = api->string_data(type_val);
+    
+    if (strcmp(type, "number") == 0) {
+        Value val = api->dict_get(node, api->string_new_len("value", 5));
+        return api->value_to_double(val);
+    }
+    
+    if (strcmp(type, "binop") == 0) {
+        Value op_val = api->dict_get(node, api->string_new_len("op", 2));
+        const char* op = api->string_data(op_val);
+        
+        Value left_node = api->dict_get(node, api->string_new_len("left", 4));
+        Value right_node = api->dict_get(node, api->string_new_len("right", 5));
+        
+        double left = eval_ast_node(api, left_node);
+        double right = eval_ast_node(api, right_node);
+        
+        switch (op[0]) {
+            case '+': return left + right;
+            case '-': return left - right;
+            case '*': return left * right;
+            case '/': return left / right;
+            case '^': return pow(left, right);
+            default:
+                api->msrest_panic("eval_ast(): unknown operator '%c'", op[0]);
+        }
+    }
+    
+    api->msrest_panic("eval_ast(): unknown node type '%s'", type);
+}
+
+EXPORT Value eval_ast(MsrestAPI* api, Value* args, int argc) {
+    api->check_argc(argc, 1);
+    api->check_type(MSREST_DICT, args[0].type);
+    
+    double result = eval_ast_node(api, args[0]);
+    return api->float_to_value(result);
+}

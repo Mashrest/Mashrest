@@ -1,0 +1,53 @@
+{
+  "name": "file",
+  "version": "0.1.0",
+  "author": "Mashrest",
+  "description": "Standard library for work with files.",
+  "requires": {
+    "mashrest_v": "0.1.0",
+    "abi": 1
+  },
+  "functions": {
+    "file_exists": {
+      "description": "Checks if a file exists.",
+      "args": [
+        { "name": "path", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "readfile": {
+      "description": "Reads the contents of a file.",
+      "args": [
+        { "name": "path", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "readlines": {
+      "description": "Reads lines from a file.",
+      "args": [
+        { "name": "path", "type": "string", "required": true },
+        { "name": "mode", "type": "string", "required": true }
+      ],
+      "returns": "array"
+    },
+
+    "writeto": {
+      "description": "Writes data to a file.",
+      "args": [
+        { "name": "path", "type": "string", "required": true },
+        { "name": "data", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+    "append": {
+      "description": "Appends data to a file.",
+      "args": [
+        { "name": "path", "type": "string", "required": true },
+        { "name": "data", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    }
+  }
+}

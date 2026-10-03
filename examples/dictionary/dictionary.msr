@@ -1,0 +1,16 @@
+var dict = {
+    "name": "Egor",
+    "age": 18,
+    "hobbies": ["Swimming", "Play games", "Learning"]
+}
+
+movoutln(dict) // the order is not guaranteed
+
+movoutln(dict["name"]) // get element
+movoutln(dict["hobbies"][1])
+
+dict["info"] = "lives in Finland"
+
+// returns a boolean value (was the value removed?)
+movoutln("deleted with code " + dict.remove("age")) 
+movoutln(dict)

@@ -1,0 +1,47 @@
+// function declaration
+flow add(x, y)
+    return x+y
+
+flow sub(x, y)
+    return x-y
+
+flow mul(x, y)
+    return x*y
+
+flow div(x, y)
+    if y != 0
+        return x/y
+    movoutln("Cannot divide by zero!")
+    return "ERROR"
+
+
+var adder = getref(add) // you can call adder now
+movoutln("indirect call add: " + adder(3, 10))
+
+
+flow getconsole(txt)
+    movoutln(txt)
+    var data = movin()
+    return data
+
+var collection = {"add": getref(add),
+                "sub": getref(sub),
+                "mul": getref(mul),
+                "div": getref(div)}
+
+while <1>
+    var text = getconsole("Input operation (add, sub, mul, div): ")
+    if text == "exit"
+        break
+
+    if !(collection has text)
+        movoutln("There is no such operation")
+        continue
+
+    var imm = collection[text]
+    var num1 = int(getconsole("Input first num: "))
+    var num2 = int(getconsole("Input second num: "))
+
+    movoutln("answer: " + imm(num1, num2))
+
+movoutln("BYE! :]")

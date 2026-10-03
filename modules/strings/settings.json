@@ -1,0 +1,188 @@
+{
+  "name": "strings",
+  "version": "0.1.0",
+  "author": "Mashrest",
+  "description": "Standard library for work with strings.",
+  "requires": {
+    "mashrest_v": "0.1.0",
+    "abi": 1
+  },
+  "functions": {
+    "length": {
+      "description": "Returns the number of characters in the string (not bytes).",
+      "example": "s::length(\"Hello\")",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "chr": {
+      "description": "Converts an ASCII/Unicode code point (or an array of code points) into a string.",
+      "example": "s::chr(65)",
+      "overloads": [
+        {
+          "args": [
+            { "name": "code", "type": "integer", "required": true }
+          ],
+          "returns": "string"
+        },
+        {
+          "args": [
+            { "name": "codes", "type": "array", "required": true }
+          ],
+          "returns": "string"
+        }
+      ]
+    },
+
+    "substr": {
+      "description": "Returns a substring of `text` starting at character index `start` with the given character length. If `length` is omitted, the substring extends to the end of the string.",
+      "example": "s::substr(\"Hello\", 1, 3) -> \"ell\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true },
+        { "name": "start", "type": "integer", "required": true },
+        { "name": "length", "type": "integer", "required": false, "default": -1 }
+      ],
+      "returns": "string"
+    },
+
+    "upper": {
+      "description": "Converts string to uppercase.",
+      "example": "s::upper(\"hello\") -> \"HELLO\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "lower": {
+      "description": "Converts string to lowercase.",
+      "example": "s::lower(\"HELLO\") -> \"hello\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "empty": {
+      "description": "Checks if string is empty.",
+      "example": "s::empty(\"\") -> true",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "ord": {
+      "description": "Converts a character into its Unicode code point. If the string contains multiple characters, returns an array of code points.",
+      "example": "s::ord(\"H\") -> 72",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "integer|array"
+    },
+
+    "contains": {
+      "description": "Checks if `haystack` contains `needle`.",
+      "example": "s::contains(\"Hello\", \"ell\") -> true",
+      "args": [
+        { "name": "haystack", "type": "string", "required": true },
+        { "name": "needle", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "find": {
+      "description": "Finds the character index of the first occurrence of `needle` in `haystack`. Returns -1 if not found.",
+      "example": "s::find(\"Hello\", \"l\") -> 2",
+      "args": [
+        { "name": "haystack", "type": "string", "required": true },
+        { "name": "needle", "type": "string", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "trim": {
+      "description": "Removes Unicode whitespace from both ends of the string.",
+      "example": "s::trim(\"  hi  \") -> \"hi\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "is_digit": {
+      "description": "Checks whether the passed single character is a decimal digit (0-9).",
+      "example": "s::is_digit(\"7\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_alpha": {
+      "description": "Checks whether the passed single character is a letter (Latin or Cyrillic).",
+      "example": "s::is_alpha(\"A\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_alnum": {
+      "description": "Checks whether the passed single character is alphanumeric (letter or digit).",
+      "example": "s::is_alnum(\"7\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_space": {
+      "description": "Checks whether the passed single character is Unicode whitespace.",
+      "example": "s::is_space(\" \") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_upper": {
+      "description": "Checks whether the passed single character is an uppercase letter (Latin or Cyrillic).",
+      "example": "s::is_upper(\"A\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_lower": {
+      "description": "Checks whether the passed single character is a lowercase letter (Latin or Cyrillic).",
+      "example": "s::is_lower(\"a\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "is_hex": {
+      "description": "Checks whether the passed single character is a hexadecimal digit (0-9, A-F, a-f).",
+      "example": "s::is_hex(\"F\") -> true",
+      "args": [
+        { "name": "char", "type": "string", "required": true }
+      ],
+      "returns": "boolean"
+    },
+
+    "format": {
+      "description": "Returns a formatted string using a template and a dictionary of values. Placeholders use the syntax `{key}`, `{key.precision}` for floating-point precision, and `{{` / `}}` for literal braces. Raises an error if a key is missing or braces are unbalanced.",
+      "example": "s::format(\"Hello, {name}! {pi.2}\", {\"name\": \"Bob\", \"pi\": 3.14159}) -> \"Hello, Bob! 3.14\"",
+      "args": [
+        { "name": "template", "type": "string", "required": true },
+        { "name": "data", "type": "dict", "required": true }
+      ],
+      "returns": "string"
+    }
+  }
+}

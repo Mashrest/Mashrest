@@ -1,0 +1,30 @@
+const num1 = 100
+const num2 = 19
+
+const text1 = "Hello "
+const text2 = "World!"
+
+// String concatenation
+// Works when at least one of the operands is a string
+movoutln(text1 + text2)
+
+movoutln("Addition: " + (num1 + num2))
+movoutln("Subtraction: " + (num1 - num2))
+movoutln("Multiplication: " + (num1 * num2))
+movoutln("Division: " + (num1 / num2))
+movoutln("Integer division: " + (num1 \\ num2))
+movoutln("Modulo: " + (num1 % num2))
+
+// in logical operations, null plays the role of an unknown operand.
+
+const or_answer = <1> || <0> // <1>
+const and_answer = <0> && null // null
+var norb = <1> || <null> // <1>
+
+// you can invert logic using !
+var logict_invert = !(<1>) // <0>
+var logicf_invert = !(<0>) // <1>
+
+
+movoutln(16 << 1) // SHR (32)
+movoutln(64 >> 3) // SHL (8)

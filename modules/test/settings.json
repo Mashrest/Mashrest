@@ -1,0 +1,73 @@
+{
+    "name": "test",
+    "version": "0.1.0",
+    "abi": 1,
+    "author": "Mashrest",
+    "description": "Internal library for testing native objects.",
+    "requires": {
+        "mashrest_v": "0.1.0",
+        "abi": 1
+    },
+    "functions": {
+        "new": {
+            "description": {
+                "en": "Internal testing: creates a new native object and returns a handle to it.",
+                "ru": "Внутреннее тестирование: создаёт новый нативный объект и возвращает дескриптор."
+            },
+            "example": "t::new() -> native",
+            "args": [],
+            "returns": "native"
+        },
+
+        "get": {
+            "description": {
+                "en": "Internal testing: returns the integer value stored in the native object.",
+                "ru": "Внутреннее тестирование: возвращает целочисленное значение, хранимое в нативном объекте."
+            },
+            "example": "t::get(obj) -> 42",
+            "args": [
+                { "name": "obj", "type": "native", "required": true }
+            ],
+            "returns": "integer"
+        },
+
+        "set": {
+            "description": {
+                "en": "Internal testing: sets the integer value stored in the native object.",
+                "ru": "Внутреннее тестирование: устанавливает целочисленное значение в нативном объекте."
+            },
+            "example": "t::set(obj, 42)",
+            "args": [
+                { "name": "obj", "type": "native", "required": true },
+                { "name": "value", "type": "integer", "required": true }
+            ],
+            "returns": "null"
+        },
+
+        "inc": {
+            "description": {
+                "en": "Internal testing: increments the integer value stored in the native object and returns the new value.",
+                "ru": "Внутреннее тестирование: увеличивает целочисленное значение в нативном объекте и возвращает новое значение."
+            },
+            "example": "t::inc(obj) -> 43",
+            "args": [
+                { "name": "obj", "type": "native", "required": true }
+            ],
+            "returns": "integer"
+        },
+        "test_preprocessor": {
+            "description": {
+                "en": "Internal testing: checks preprocessor argument handling with required and optional integer arguments.",
+                "ru": "Внутреннее тестирование: проверяет обработку аргументов препроцессором с обязательными и необязательными целочисленными аргументами."
+            },
+            "example": "t::test_preprocessor(1, 2, 3, 4) -> 10",
+            "args": [
+                { "name": "a", "type": "integer", "required": true },
+                { "name": "b", "type": "integer", "required": false, "default": 0 },
+                { "name": "c", "type": "integer", "required": true },
+                { "name": "d", "type": "integer", "required": true }
+            ],
+            "returns": "integer"
+        }
+    }
+}

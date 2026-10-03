@@ -1,0 +1,122 @@
+{
+  "name": "math",
+  "version": "0.1.0",
+  "author": "Mashrest",
+  "description": "Standard math library.",
+  "requires": {
+    "mashrest_v": "0.1.0",
+    "abi": 1
+  },
+  "functions": {
+    "square": {
+      "internal_name": "msrest_square",
+      "description": "Returns the square of a number.",
+      "example": "m::square(5)",
+      "args": [
+        { "name": "value", "type": "number", "required": true }
+      ],
+      "returns": "number"
+    },
+
+    "sqroot": {
+      "internal_name": "msrest_sqroot",
+      "description": "Returns the square root of a number.",
+      "example": "m::sqroot(16)",
+      "args": [
+        { "name": "value", "type": "number", "required": true }
+      ],
+      "returns": "float"
+    },
+
+    "exp": {
+      "internal_name": "msrest_exp",
+      "description": "Returns e raised to the given power.",
+      "example": "m::exp(2)",
+      "args": [
+        { "name": "power", "type": "integer", "required": true }
+      ],
+      "returns": "float|null"
+    },
+
+    "pi": {
+      "internal_name": "msrest_pi",
+      "description": "Returns the value of pi with the given precision.",
+      "example": "m::pi(5)",
+      "args": [
+        { "name": "precision", "type": "integer", "required": true }
+      ],
+      "returns": "float|null"
+    },
+
+    "sin": {
+      "internal_name": "msrest_sinus",
+      "description": "Returns the sine of a number.",
+      "example": "m::sin(0)",
+      "args": [
+        { "name": "value", "type": "number", "required": true }
+      ],
+      "returns": "float"
+    },
+
+    "cos": {
+      "internal_name": "msrest_cosin",
+      "description": "Returns the cosine of a number.",
+      "example": "m::cos(0)",
+      "args": [
+        { "name": "value", "type": "number", "required": true }
+      ],
+      "returns": "float"
+    },
+
+    "power": {
+      "internal_name": "msrest_power",
+      "description": "Raises a number to the given power.",
+      "example": "m::power(2, 10)",
+      "args": [
+        { "name": "base", "type": "numeric", "required": true },
+        { "name": "exponent", "type": "numeric", "required": true }
+      ],
+      "returns": "numeric|null"
+    },
+    "min": {
+      "internal_name": "msrest_min",
+      "description": "Finds the minimum of two.",
+      "example": "m::min(2, 10)",
+      "args": [
+        { "name": "first", "type": "numeric", "required": true },
+        { "name": "second", "type": "numeric", "required": true }
+      ],
+      "returns": "float|integer"
+    },
+    "max": {
+      "internal_name": "msrest_max",
+      "description": "Finds the maximum of two.",
+      "example": "m::max(7, 10)",
+      "args": [
+        { "name": "first", "type": "numeric", "required": true },
+        { "name": "second", "type": "numeric", "required": true }
+      ],
+      "returns": "float|integer"
+    },
+    "clamp": {
+      "internal_name": "msrest_clamp",
+      "description": ".",
+      "example": "m::clamp(10, 30, 100)",
+      "args": [
+        { "name": "min", "type": "numeric", "required": true },
+        { "name": "number", "type": "numeric", "required": true },
+        { "name": "max", "type": "numeric", "required": true }
+      ],
+      "returns": "float|integer"
+    },    
+    "abs": {
+      "internal_name": "msrest_abs",
+      "description": "Finds the absolute value of number.",
+      "example": "m::abs(-39)",
+      "args": [
+        { "name": "value", "type": "numeric", "required": true }
+      ],
+      "returns": "float|integer"
+    }
+  }
+}
