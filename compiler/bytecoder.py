@@ -26,6 +26,8 @@ ARRAY_BOOL  = 3
 
 LEN = 1
 BYTELEN = 2
+DKEYS = 8
+DPAIRS = 9
 
 class BytecodeGenerator:
     def generate_block(self, body):
@@ -142,6 +144,8 @@ class BytecodeGenerator:
             'len': self._handle_len,
             'remove': self._handle_remove,
             "bytelen": self._handle_len,
+            "keys": self._handle_dkeys,
+            "pairs": self._handle_dpairs,
         }
         self.opcode_handlers = self.build_opcode_hdlrs()
         self.intermediate_data = self.build_intrmd_data()
@@ -623,7 +627,11 @@ class BytecodeGenerator:
             self.generate(arg)
         self.emit("DICT_DEL")
 
+    def _handle_dkeys(self, node):
+        self.emit(f"INVOKE_STATIC {DKEYS}")
 
+    def _handle_dpairs(self, node):
+        self.emit(f"INVOKE_STATIC {DPAIRS}")
 
     def _handle_binop(self, node, op):
         self.generate(node["left"])

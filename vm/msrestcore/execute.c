@@ -1837,92 +1837,11 @@ OP_60: {
 
 OP_66: {
     #if _PROFILE
-    PROF_START(); //INVOKE_STATIC
+    PROF_START(); // INVOKE_STATIC
     #endif
 
-    uint32_t method = ins.arg1;
-
-    switch(method) {
-        case TO_INT: {
-            Value v = LPOP();
-            Value result = {0};
-            switch(v.type) 
-            {
-                case MSREST_INT: { 
-                    result = v; break; }
-                case MSREST_FLOAT: { 
-                    result = int_to_value((intptr_t)v.floating); break; }
-                case MSREST_STRING: { 
-                    result = int_to_value(atoll(v.string->data)); break;}
-                case MSREST_NULL: { 
-                    result = int_to_value(0); break; }
-                default:  {
-                    msrest_panic("Cannot convert type %d to int\n", v.type); }
-            }
-            LPUSH(result);
-            break;
-        }
-        case TO_FLOAT: {
-            Value v = LPOP();
-            Value result = {0};
-
-            switch(v.type)
-            {
-                case MSREST_FLOAT: {
-                    result = v; 
-                    break; 
-                }
-                case MSREST_INT: {
-                    result = float_to_value((double)v.integer); 
-                    break; 
-                }
-                case MSREST_STRING: {
-                    char *endptr;
-                    double val = strtod(v.string->data, &endptr);
-                    if (endptr == v.string->data) 
-                        msrest_panic("Cannot convert string to float: '%s'\n", v.string->data);
-                    result = float_to_value(val); 
-                    break; 
-                }
-                case MSREST_NULL: { 
-                    result = float_to_value(0.0); 
-                    break; 
-                }
-                case MSREST_BOOL: { 
-                    result = float_to_value(v.integer ? 1.0 : 0.0); 
-                    break; 
-                }
-                default: {
-                    msrest_panic("Cannot convert type %d to float\n", v.type);      
-                }
-            }
-            LPUSH(result);
-            break;
-        }
-        case TO_STR: {
-
-            Value v = LPOP();
-            Value result = {0};
-
-            if(v.type == MSREST_STRING) result = v;
-            else {
-                char *s = value_to_string(v);
-                result = string_to_value(s); 
-                free(s);
-            }
-            LPUSH(result);
-            break;
-        }
-        case TO_BOOL: {
-            Value v = LPOP();
-            LPUSH(bool_to_value(value_to_bool(v)));
-            break;
-
-        }
-        default: { 
-            break; 
-        }
-    }
+    Value v = LPOP();
+    LPUSH(invoke_static(ins.arg1, v));
 
     #if _PROFILE
     PROF_END();
@@ -2404,3 +2323,63 @@ OP_BB: {
 }
 
 
+
+
+/* < STATIC METHOD DISPATCH > */
+
+static Value invoke_static_int(Value v)
+{
+    switch (v.type) {
+        case MSREST_INT:   return v;
+        case MSREST_FLOAT: return int_to_value((int64_t)v.floating);
+        case MSREST_STRING: return int_to_value(atoll(v.string->data));
+        case MSREST_NULL:  return int_to_value(0);
+        case MSREST_BOOL:  return int_to_value(v.integer ? 1 : 0);
+        default:
+            msrest_panic("Cannot convert %s to int\n", type_name(v.type));
+    }
+}
+
+static Value invoke_static_float(Value v)
+{
+    switch (v.type) {
+        case MSREST_FLOAT:  return v;
+        case MSREST_INT:    return float_to_value((double)v.integer);
+        case MSREST_BOOL:   return float_to_value(v.integer ? 1.0 : 0.0);
+        case MSREST_NULL:   return float_to_value(0.0);
+        case MSREST_STRING: {
+            char *endptr = NULL;
+            double val = strtod(v.string->data, &endptr);
+            if (endptr == v.string->data)
+                msrest_panic("Cannot convert string to float: '%s'\n", v.string->data);
+            return float_to_value(val);
+        }
+        default:
+            msrest_panic("Cannot convert %s to float\n", type_name(v.type));
+    }
+}
+
+static Value invoke_static_str(Value v)
+{
+    if (v.type == MSREST_STRING) return v;
+
+    char *s = value_to_string(v);
+    Value result = string_to_value(s);
+    free(s);
+    return result;
+}
+
+
+static Value invoke_static(uint32_t method, Value v)
+{
+    switch (method) {
+        case TO_INT:   return invoke_static_int(v);
+        case TO_FLOAT: return invoke_static_float(v);
+        case TO_STR:   return invoke_static_str(v);
+        case TO_BOOL:  return bool_to_value(value_to_bool(v));
+        case DICT_KEYS: return dict_keys(v);
+        case DICT_PAIRS: return dict_pairs(v);
+        default:
+            msrest_panic("Unknown static method id: %u\n", method);
+    }
+}

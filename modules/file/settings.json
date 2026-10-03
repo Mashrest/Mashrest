@@ -8,7 +8,8 @@
     "abi": 1
   },
   "functions": {
-    "file_exists": {
+    "exists": {
+      "internal_name": "exists",
       "description": "Checks if a file exists.",
       "args": [
         { "name": "path", "type": "string", "required": true }
@@ -16,7 +17,8 @@
       "returns": "boolean"
     },
 
-    "readfile": {
+    "read": {
+      "internal_name": "readf",
       "description": "Reads the contents of a file.",
       "args": [
         { "name": "path", "type": "string", "required": true }
@@ -25,6 +27,7 @@
     },
 
     "readlines": {
+      "internal_name": "readlines",
       "description": "Reads lines from a file.",
       "args": [
         { "name": "path", "type": "string", "required": true },
@@ -33,7 +36,8 @@
       "returns": "array"
     },
 
-    "writeto": {
+    "write": {
+      "internal_name": "writetofile",
       "description": "Writes data to a file.",
       "args": [
         { "name": "path", "type": "string", "required": true },
@@ -42,6 +46,7 @@
       "returns": "boolean"
     },
     "append": {
+      "internal_name": "append",
       "description": "Appends data to a file.",
       "args": [
         { "name": "path", "type": "string", "required": true },

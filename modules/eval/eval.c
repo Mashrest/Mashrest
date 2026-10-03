@@ -5,7 +5,7 @@
 #include <string.h>  
 #include <ctype.h>      
 
-/* ==================== ПАРСИНГ МАТЕМАТИКИ ==================== */
+/* парсинг математики */
 
 typedef struct Parser {
     const char* input;
@@ -13,19 +13,19 @@ typedef struct Parser {
     size_t len;
 } Parser;
 
-/* Пропуск пробелов */
+/* пропуск пробелов */
 static void skip_spaces(Parser* p) {
     while (p->pos < p->len && isspace(p->input[p->pos])) {
         p->pos++;
     }
 }
 
-/* Проверка, что текущий символ - цифра */
+/* проверка, что текущий символ - цифра */
 static int is_digit(char c) {
     return c >= '0' && c <= '9';
 }
 
-/* Парсинг числа */
+/* парсинг числа */
 static double parse_number(Parser* p) {
     skip_spaces(p);
     const char* start = p->input + p->pos;
@@ -35,7 +35,7 @@ static double parse_number(Parser* p) {
     return num;
 }
 
-/* Создание узла-числа */
+/* создание узла-числа */
 static Value make_number_node(MsrestAPI* api, double value) {
     Value node = api->dict_new();
     api->dict_set(node, api->string_new_len("type", 4), api->string_new_len("number", 6));
@@ -43,7 +43,7 @@ static Value make_number_node(MsrestAPI* api, double value) {
     return node;
 }
 
-/* Создание узла-бинарной операции */
+/* слздание узла-бинарной операции */
 static Value make_binop_node(MsrestAPI* api, const char* op, Value left, Value right) {
     Value node = api->dict_new();
     api->dict_set(node, api->string_new_len("type", 4), api->string_new_len("binop", 5));
@@ -53,10 +53,10 @@ static Value make_binop_node(MsrestAPI* api, const char* op, Value left, Value r
     return node;
 }
 
-/* Парсинг выражения (рекурсивный спуск) */
+/* парсинг выражения (рекурсивный спуск) */
 static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence);
 
-/* Парсинг первичного выражения (число или скобки) */
+/* парсинг первичного выражения (число или скобки) */
 static Value parse_primary(MsrestAPI* api, Parser* p) {
     skip_spaces(p);
     
@@ -72,7 +72,7 @@ static Value parse_primary(MsrestAPI* api, Parser* p) {
         return make_number_node(api, num);
     }
     
-    /* Скобки */
+    /* скобки */
     if (c == '(') {
         p->pos++;  // пропускаем '('
         Value node = parse_expression(api, p, 0);
@@ -87,12 +87,12 @@ static Value parse_primary(MsrestAPI* api, Parser* p) {
     api->msrest_panic("eval(): unexpected character '%c'", c);
 }
 
-/* Проверка, является ли символ оператором */
+/* проверка, является ли символ оператором */
 static int is_operator(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
 }
 
-/* Получение приоритета оператора */
+/* получение приоритета оператора */
 static int get_precedence(char op) {
     switch (op) {
         case '+':
@@ -104,9 +104,9 @@ static int get_precedence(char op) {
     }
 }
 
-/* Парсинг выражения с учётом приоритетов */
+/* парсинг выражения с учётом приоритетов */
 static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
-    /* Парсим левую часть */
+    /* парсим левую часть */
     Value left = parse_primary(api, p);
     
     while (1) {
@@ -121,10 +121,10 @@ static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
         
         p->pos++;  // пропускаем оператор
         
-        /* Парсим правую часть с учётом приоритета */
+        /* парсим правую часть с учётом приоритета */
         Value right = parse_expression(api, p, prec + 1);
         
-        /* Создаём узел бинарной операции */
+        /* создаём узел бинарной операции */
         char op_str[2] = {op, '\0'};
         left = make_binop_node(api, op_str, left, right);
     }
@@ -132,7 +132,7 @@ static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
     return left;
 }
 
-/* Экспортируемая функция eval */
+/* экспортируемая функция eval */
 EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
     api->check_type(MSREST_STRING, args[0].type);
@@ -149,10 +149,10 @@ EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
     parser.pos = 0;
     parser.len = len;
     
-    /* Парсим выражение */
+    /* парсим выражение */
     Value ast = parse_expression(api, &parser, 0);
     
-    /* Проверяем, что дошли до конца */
+    /* проверяем, что дошли до конца */
     skip_spaces(&parser);
     if (parser.pos < parser.len) {
         api->msrest_panic("eval(): unexpected characters after expression");
@@ -162,7 +162,7 @@ EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
 }
 
 
-/* Вычисление AST */
+/* вычисление AST */
 static double eval_ast_node(MsrestAPI* api, Value node) {
     Value type_val = api->dict_get(node, api->string_new_len("type", 4));
     const char* type = api->string_data(type_val);
@@ -189,11 +189,11 @@ static double eval_ast_node(MsrestAPI* api, Value node) {
             case '/': return left / right;
             case '^': return pow(left, right);
             default:
-                api->msrest_panic("eval_ast(): unknown operator '%c'", op[0]);
+                api->msrest_panic("[EVAL] eval_ast(): unknown operator '%c'", op[0]);
         }
     }
     
-    api->msrest_panic("eval_ast(): unknown node type '%s'", type);
+    api->msrest_panic("[EVAL] eval_ast(): unknown node type '%s'", type);
 }
 
 EXPORT Value eval_ast(MsrestAPI* api, Value* args, int argc) {

@@ -8,15 +8,25 @@
 #include <string.h>
 
 
-// UTF-8 утилиты
+// UTF-8 утилиты.
 
 static uint32_t utf8_decode(const uint8_t* data) {
     uint8_t c = data[0];
-    if ((c & 0x80) == 0) return c;
-    if ((c & 0xE0) == 0xC0) return ((c & 0x1F) << 6) | (data[1] & 0x3F);
-    if ((c & 0xF0) == 0xE0) return ((c & 0x0F) << 12) | ((data[1] & 0x3F) << 6) | (data[2] & 0x3F);
-    if ((c & 0xF8) == 0xF0) return ((c & 0x07) << 18) | ((data[1] & 0x3F) << 12) | 
-                                 ((data[2] & 0x3F) << 6) | (data[3] & 0x3F);
+    if (c < 0x80) return c;
+    if ((c & 0xE0) == 0xC0) {
+        if ((data[1] & 0xC0) != 0x80) return 0xFFFD;
+        return ((c & 0x1F) << 6) | (data[1] & 0x3F);
+    }
+    if ((c & 0xF0) == 0xE0) {
+        if ((data[1] & 0xC0) != 0x80 || (data[2] & 0xC0) != 0x80) return 0xFFFD;
+        return ((c & 0x0F) << 12) | ((data[1] & 0x3F) << 6) | (data[2] & 0x3F);
+    }
+    if ((c & 0xF8) == 0xF0) {
+        if ((data[1] & 0xC0) != 0x80 || (data[2] & 0xC0) != 0x80 || (data[3] & 0xC0) != 0x80)
+            return 0xFFFD;
+        return ((c & 0x07) << 18) | ((data[1] & 0x3F) << 12) |
+               ((data[2] & 0x3F) << 6) | (data[3] & 0x3F);
+    }
     return 0xFFFD;
 }
 
@@ -86,7 +96,7 @@ static char* encode_codepoints(const uint32_t* cp, size_t char_len, size_t* out_
     return buf;
 }
 
-// проверки символов
+// проверки символов.
 
 static int is_unicode_space(uint32_t cp) {
     if (cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r' || cp == '\v' || cp == '\f') return 1;
@@ -97,32 +107,32 @@ static int is_unicode_space(uint32_t cp) {
 }
 
 static uint32_t require_char(MsrestAPI* api, Value* args, int argc, const char* func) {
-    if (argc != 1) api->msrest_panic("%s() expects 1 argument, got %d", func, argc);
+    if (argc != 1) api->msrest_panic("[STRINGS] %s() expects 1 argument, got %d", func, argc);
     api->check_type(MSREST_STRING, args[0].type);
     
     const char* str = api->string_data(args[0]);
     if (api->string_chars(args[0]) != 1) {
-        api->msrest_panic("%s() expects a string of length 1", func);
+        api->msrest_panic("[STRINGS] %s() expects a string of length 1", func);
     }
     return utf8_decode((uint8_t*)str);
 }
 
-// общая функция для upper/lower
+// общая функция для upper/lower.
 
 static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
-    if (argc != 1) api->msrest_panic("%s() expects 1 argument, got %d", 
+    if (argc != 1) api->msrest_panic("[STRINGS] %s() expects 1 argument, got %d", 
                                      to_upper ? "upper" : "lower", argc);
     api->check_type(MSREST_STRING, args[0].type);
     
     const char* str = api->string_data(args[0]);
-    if (!str) api->msrest_panic("%s() received NULL string", to_upper ? "upper" : "lower");
+    if (!str) api->msrest_panic("[STRINGS] %s() received NULL string", to_upper ? "upper" : "lower");
     
     size_t char_len = (size_t)api->string_chars(args[0]);
     if (char_len == 0) return api->string_new_len("", 0);
     
     size_t byte_len;
     uint32_t* cp = decode_to_codepoints(str, char_len, &byte_len);
-    if (!cp) api->msrest_panic("%s() malloc failed", to_upper ? "upper" : "lower");
+    if (!cp) api->msrest_panic("[STRINGS] %s() malloc failed", to_upper ? "upper" : "lower");
     
     for (size_t i = 0; i < char_len; i++) {
         uint32_t c = cp[i];
@@ -140,14 +150,14 @@ static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
     size_t new_byte_len;
     char* buf = encode_codepoints(cp, char_len, &new_byte_len);
     free(cp);
-    if (!buf) api->msrest_panic("%s() malloc failed", to_upper ? "upper" : "lower");
+    if (!buf) api->msrest_panic("[STRINGS] %s() malloc failed", to_upper ? "upper" : "lower");
     
     Value result = api->string_new_len(buf, new_byte_len);
     free(buf);
     return result;
 }
 
-// is_* проверки
+// is_* проверки.
 
 static int is_digit_char(uint32_t cp) {
     return (cp >= '0' && cp <= '9');
@@ -188,23 +198,25 @@ static int is_hex_char(uint32_t cp) {
     return 0;
 }
 
-// EXPORT функции
+// EXPORT функции.
 
-/* вспомогательные функции для управления буфером */
+/* вспомогательные функции для управления буфером. */
 
 static void* safe_realloc(MsrestAPI *api, void* ptr, size_t size) {
     void* p = realloc(ptr, size);
-    if (!p) api->msrest_panic("memory reallocation failed");
+    if (!p) api->msrest_panic("[STRINGS] memory reallocation failed");
     return p;
 }
 
-static void ensure_capacity(MsrestAPI *api, char** buffer, size_t* capacity, size_t needed) {
-    if (needed >= *capacity) {
-        while (*capacity <= needed) {
-            *capacity *= 2;
-        }
-        *buffer = safe_realloc(api, *buffer, *capacity);
+static void ensure_capacity(MsrestAPI* api, char** buffer, size_t* capacity, size_t needed) {
+    if (needed < *capacity) return;
+    size_t nc = *capacity ? *capacity : 64;
+    while (nc <= needed) {
+        if (nc > SIZE_MAX / 2) { nc = needed + 1; break; }
+        nc *= 2;
     }
+    *buffer = safe_realloc(api, *buffer, nc);
+    *capacity = nc;
 }
 
 static char* safe_strdup(const char* s) {
@@ -218,9 +230,16 @@ static char* safe_strdup(const char* s) {
 
 static void* safe_malloc(MsrestAPI *api, size_t size) {
     void* p = malloc(size);
-    if (!p) api->msrest_panic("memory allocation failed");
+    if (!p) api->msrest_panic("[STRINGS] memory allocation failed");
     return p;
 }
+
+static inline int is_ascii_space(uint8_t c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
+}
+
+
+
 
 
 EXPORT Value length(MsrestAPI* api, Value* args, int argc) {
@@ -248,7 +267,7 @@ EXPORT Value ord(MsrestAPI* api, Value* args, int argc) {
     const char* str = api->string_data(args[0]);
     size_t char_len = (size_t)api->string_chars(args[0]);
     
-    if (char_len == 0) api->msrest_panic("ord() cannot convert an empty string");
+    if (char_len == 0) api->msrest_panic("[STRINGS] ord() cannot convert an empty string\n");
     
     if (char_len == 1) {
         return api->int_to_value(utf8_decode((uint8_t*)str));
@@ -271,7 +290,7 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
     if (type == MSREST_INT) {
         int32_t cp = (int32_t)api->value_to_int(args[0]);
         if (cp < 0 || cp > 0x10FFFF) {
-            api->msrest_panic("chr() code point out of range (0..0x10FFFF)");
+            api->msrest_panic("[STRINGS] chr() code point out of range (0..0x10FFFF)");
         }
         char buf[5];
         size_t len = utf8_encode(buf, (uint32_t)cp);
@@ -281,33 +300,32 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
     
     if (type == MSREST_ARRAY) {
         int len = api->array_size(args[0]);
-        uint32_t* cp = malloc(len * sizeof(uint32_t));
-        if (!cp) api->msrest_panic("chr(): out of memory");
+        uint32_t* cp = safe_malloc(api, len * sizeof(uint32_t));
         
         for (int i = 0; i < len; i++) {
             Value v = api->array_get(args[0], i);
             if (api->value_type(v) != MSREST_INT) {
                 free(cp);
-                api->msrest_panic("chr() array must contain integers");
+                api->msrest_panic("[STRINGS] chr() array must contain integers");
             }
             cp[i] = (uint32_t)api->value_to_int(v);
             if (cp[i] > 0x10FFFF) {
                 free(cp);
-                api->msrest_panic("chr() code point out of range");
+                api->msrest_panic("[STRINGS] chr() code point out of range");
             }
         }
         
         size_t byte_len;
         char* buf = encode_codepoints(cp, len, &byte_len);
         free(cp);
-        if (!buf) api->msrest_panic("chr(): out of memory");
+        if (!buf) api->msrest_panic("[STRINGS] chr(): out of memory");
         
         Value result = api->string_new_len(buf, byte_len);
         free(buf);
         return result;
     }
     
-    api->msrest_panic("chr() expects an integer or array");
+    api->msrest_panic("[STRINGS] chr() expects an integer or array");
 }
 
 EXPORT Value contains(MsrestAPI* api, Value* args, int argc) {
@@ -341,45 +359,63 @@ EXPORT Value find(MsrestAPI* api, Value* args, int argc) {
     return api->int_to_value((int)char_pos);
 }
 
+
 EXPORT Value trim(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
     api->check_type(MSREST_STRING, args[0].type);
-    
+
     const char* str = api->string_data(args[0]);
-    size_t byte_len = strlen(str);
-    size_t char_len = (size_t)api->string_chars(args[0]);
-    
-    if (byte_len == 0 || char_len == 0) return api->string_new_len("", 0);
-    
+    if (!str) api->msrest_panic("[STRINGS] trim(): NULL string");
+
+    size_t byte_len = api->string_bytes(args[0]);
+    if (byte_len == 0) return api->string_new_len("", 0);
+
     size_t byte_start = 0;
-    size_t chars_skipped = 0;
-    while (byte_start < byte_len && chars_skipped < char_len) {
-        uint32_t cp = utf8_decode((uint8_t*)str + byte_start);
+    size_t byte_end   = byte_len;
+
+    // FAST PATH, слева пробелы.
+    while (byte_start < byte_end) {
+        uint8_t c = (uint8_t)str[byte_start];
+        if (c >= 0x80) goto unicode_left;
+        if (!is_ascii_space(c)) break;
+        byte_start++;
+    }
+
+    // FAST PATH, справа пробелы.
+    while (byte_end > byte_start) {
+        uint8_t c = (uint8_t)str[byte_end - 1];
+        if (c >= 0x80) goto unicode_right;
+        if (!is_ascii_space(c)) break;
+        byte_end--;
+    }
+
+    goto done;
+
+unicode_left:
+    // продолжаем слева с юникодом.
+    while (byte_start < byte_end) {
+        uint32_t cp = utf8_decode((const uint8_t*)str + byte_start);
         if (!is_unicode_space(cp)) break;
         byte_start += utf8_char_bytes(str, byte_start);
-        chars_skipped++;
     }
-    
-    if (byte_start >= byte_len) return api->string_new_len("", 0);
-    
-    size_t byte_end = byte_len;
+
+unicode_right:
+    // продолжаем справа с юникодом.
     while (byte_end > byte_start) {
-        size_t prev = byte_end;
-        while (prev > byte_start && ((uint8_t)str[prev - 1] & 0xC0) == 0x80) prev--;
-        if (prev <= byte_start) break;
-        
-        uint32_t cp = utf8_decode((uint8_t*)str + prev - 1);
+        size_t prev = byte_end - 1;
+        while (prev > byte_start && ((uint8_t)str[prev] & 0xC0) == 0x80) prev--;
+
+        uint32_t cp = utf8_decode((const uint8_t*)str + prev);
         if (!is_unicode_space(cp)) break;
-        byte_end = prev - 1;
+        byte_end = prev;
     }
-    
+
+done:
     size_t result_len = byte_end - byte_start;
-    char* result = malloc(result_len + 1);
-    if (!result) api->msrest_panic("trim(): out of memory");
-    
+    char* result = safe_malloc(api, result_len + 1);
     memcpy(result, str + byte_start, result_len);
     result[result_len] = '\0';
-    
+
     Value v = api->string_new_len(result, result_len);
     free(result);
     return v;
@@ -434,10 +470,10 @@ EXPORT Value substr(MsrestAPI* api, Value* args, int argc) {
     int len_char = api->value_to_int(args[2]);
     
     if (start_char < 0 || start_char > (int)char_len) {
-        api->msrest_panic("substr(): start out of range");
+        api->msrest_panic("[STRINGS] substr(): start out of range");
     }
     
-    // -1 (или любое отрицательное) — до конца строки
+    // -1 (или любое отрицательное) - до конца строки.
     if (len_char < 0) {
         len_char = (int)char_len - start_char;
     }
@@ -457,8 +493,7 @@ EXPORT Value substr(MsrestAPI* api, Value* args, int argc) {
     }
     
     size_t result_len = byte_end - byte_start;
-    char* result = malloc(result_len + 1);
-    if (!result) api->msrest_panic("substr(): out of memory");
+    char* result = safe_malloc(api, result_len + 1);
     
     memcpy(result, str + byte_start, result_len);
     result[result_len] = '\0';
@@ -504,7 +539,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
 
             if (key_end == end) {
                 free(result);
-                api->msrest_panic("format(): unclosed brace");
+                api->msrest_panic("[STRINGS] format(): unclosed brace");
             }
             
             size_t full_len = key_end - key_start;
@@ -527,7 +562,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                     free(full_cstr);
                     free(key_cstr);
                     free(result);
-                    api->msrest_panic("format(): expected precision after '.'");
+                    api->msrest_panic("[STRINGS] format(): expected precision after '.'");
                 }
                 
                 char* endptr;
@@ -536,7 +571,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                     free(full_cstr);
                     free(key_cstr);
                     free(result);
-                    api->msrest_panic("format(): invalid precision '%s'", prec_str);
+                    api->msrest_panic("[STRINGS] format(): invalid precision '%s'", prec_str);
                 }
                 
                 free(full_cstr);
@@ -548,9 +583,9 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
             Value key_val = api->string_new_len(key_cstr, key_len);
             
             if (!api->dict_has(dict, key_val)) {
-                free(key_cstr);
                 free(result);
-                api->msrest_panic("format(): key '%s' not found", key_cstr);
+                api->msrest_panic("[STRINGS] format(): key '%s' not found", key_cstr);
+                free(key_cstr);
             }
 
             Value val = api->dict_get(dict, key_val);
@@ -573,7 +608,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
             if (!val_str) {
                 free(key_cstr);
                 free(result);
-                api->msrest_panic("format(): value_to_string returned NULL");
+                api->msrest_panic("[STRINGS] format(): value_to_string returned NULL");
             }
             
             size_t val_len = strlen(val_str);
@@ -593,11 +628,19 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                 continue;
             }
             free(result);
-            api->msrest_panic("format(): unexpected '}'");
+            api->msrest_panic("[STRINGS] format(): unexpected '}'");
         } else {
-            ensure_capacity(api, &result, &cap, len + 1);
-            result[len++] = *p;
-            p++;
+            const char* next_open  = memchr(p, '{', end - p);
+            const char* next_close = memchr(p, '}', end - p);
+            const char* stop = next_open;
+            if (!stop || (next_close && next_close < stop)) stop = next_close;
+            if (!stop) stop = end;
+
+            size_t chunk = stop - p;
+            ensure_capacity(api, &result, &cap, len + chunk);
+            memcpy(result + len, p, chunk);
+            len += chunk;
+            p = stop;
         }
     }
     

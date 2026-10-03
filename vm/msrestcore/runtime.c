@@ -701,7 +701,7 @@ Value dict_new(void) {
 Value dict_keys(Value dict_val) 
 {
     if (dict_val.type != MSREST_DICT)
-        msrest_panic("[lib] dict_keys: expected dictionary");
+        msrest_panic("[VM-ERR] dict_keys: expected dictionary");
     
     Dict *d = dict_val.dictionary;
     
@@ -726,6 +726,32 @@ Value dict_keys(Value dict_val)
     }
     
     return array_val;
+}
+
+
+
+Value dict_pairs(Value dict_val) 
+{
+    if (dict_val.type != MSREST_DICT)
+        msrest_panic("[VM-ERR] dict.pairs(): expected dictionary");
+
+    Value worker = dict_keys(dict_val);
+    Array *worker_arr = worker.array;
+    Value container = array_new(0);
+    
+    int i = 0;
+    while (i < worker_arr->size) {
+        Value v = dict_get(dict_val, worker_arr->values[i]);
+        Value imm = array_new(0);
+        array_push(imm, worker_arr->values[i]);
+        array_push(imm, v);
+        array_push(container, imm);
+        i++;
+    }
+    /* проходим по всем корзинам */
+
+    
+    return container;
 }
 
 /* ресайз словаря */
@@ -891,12 +917,12 @@ void array_set(Value v, uint32_t index, Value value)
     v.array->values[index] = value;
 }
 
-void array_push(Value v, Value value)
+void array_push(Value array, Value value)
 {
-    if (v.type != MSREST_ARRAY)
+    if (array.type != MSREST_ARRAY)
         msrest_panic("Type error: Expected array");
 
-    Array *arr = v.array;
+    Array *arr = array.array;
     if (arr->size >= arr->capacity) {
         arr->capacity *= 2;
         arr->values = safe_realloc(arr->values,

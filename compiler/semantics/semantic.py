@@ -992,6 +992,7 @@ class SemanticAnalysis:
 
         obj_type = self.get_operand_type(obj)
 
+        # TODO рефакторинг этого.
         # методы массивов.
         if method == "push":
             if not (obj_type & (ARRAY_TYPES | {"ANY"})):
@@ -1047,9 +1048,29 @@ class SemanticAnalysis:
             if argslen > 255:
                 self.error(f"'remove' can only accept 0..255 args, got {argslen}", obj)
                 return
-            self._annotate(node, {"ANY"})
+            self._annotate(node, {"BOOL"})
             return
 
+        if method == "keys":
+            if not (obj_type & (ARRAY_TYPES | {"DICT", "ANY"})):
+                self.error(f"'keys' can only be called on dicts, got {self._format_type(obj_type)}", obj)
+                return
+            if argslen > 255:
+                self.error(f"'keys' takes no arguments, got {argslen}", obj)
+                return
+            self._annotate(node, {"ARRAY"})
+            return
+
+        if method == "pairs":
+            if not (obj_type & (ARRAY_TYPES | {"DICT", "ANY"})):
+                self.error(f"'pairs' can only be called on dicts, got {self._format_type(obj_type)}", obj)
+                return
+            if argslen > 255:
+                self.error(f"'pairs' takes no arguments, got {argslen}", obj)
+                return
+            self._annotate(node, {"ARRAY"})
+            return
+        
         # неизвестный метод.
         self.error(f"Unknown method '{method}' for type {self._format_type(obj_type)}", node)
 

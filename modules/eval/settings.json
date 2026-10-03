@@ -21,6 +21,7 @@
         },
 
         "eval_ast": {
+            "internal_name": "eval_ast",
             "description": {
                 "en": "Evaluates an AST (Abstract Syntax Tree) and returns the computed number.",
                 "ru": "Вычисляет AST (абстрактное синтаксическое дерево) и возвращает полученное число."
