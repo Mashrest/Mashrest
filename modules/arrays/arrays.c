@@ -65,7 +65,6 @@ EXPORT Value bubble_sort_int(MsrestAPI *api, Value *args, int argc)
     /* Первая проверка на числовые типы */
     for (int i = 0; i<size; i++) {
         Value v = api->array_get(args[0], i);
-        printf("%d\n", api->value_type(v));
         if (!(api->value_type(v) == MSREST_INT)) {
             api->msrest_panic("Cannot sort non-number values!\n");
         }
@@ -132,8 +131,6 @@ EXPORT Value bubble_sort(MsrestAPI *api, Value *args, int argc)
         }
     }
 
-    repr_char(types, size);
-
     double *numbers = malloc(size * sizeof(double));
 
     for (int i = 0; i<size; i++) {
@@ -146,9 +143,6 @@ EXPORT Value bubble_sort(MsrestAPI *api, Value *args, int argc)
         }
     }
 
-    printf("repr fi!\n");
-    repr_fi(numbers, types, size);
-
     for (int s = 0; s<size-1; s++) {
         uint8_t swapped = 0;
         for (int j = 0; j < size - 1 - s; j++) {
@@ -159,10 +153,6 @@ EXPORT Value bubble_sort(MsrestAPI *api, Value *args, int argc)
         }
         if (!swapped) { break; }
     }
-
-    printf("repr fi!\n");
-    repr_fi(numbers, types, size);
-    repr_char(types, size);
 
     /* Создаем массив, получаем значение-держатель */
     Value output = api->array_new(size);
@@ -241,11 +231,6 @@ EXPORT Value insertion_sort(MsrestAPI *api, Value *args, int argc)
     }
 
     insertion_sort_ptr(numbers, types, 0, size - 1);  // прямая функция с указателями.
-
-    printf("repr! \n");
-    repr_fi(numbers, types, size);
-    printf("types! \n");
-    repr_char(types, size);
 
     /* создаем массив, получаем значение-держатель. */
     Value output = api->array_new(size);
