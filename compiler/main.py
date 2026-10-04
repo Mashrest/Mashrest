@@ -11,8 +11,8 @@ import json
 import os
 
 
-DEBUG = True
-DIS = True
+DEBUG = False
+DIS = False
 
 
 """COLORS = {

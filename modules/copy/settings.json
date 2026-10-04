@@ -1,0 +1,23 @@
+{
+    "name": "copy",
+    "version": "0.1.0",
+    "author": "Mashrest",
+    "description": "Standard library for copying.",
+    "requires": {
+        "mashrest_v": "0.1.0",
+        "abi": 1
+    },
+    "functions": {
+        "copy": {
+            "description": {
+                "en": "Parses a mathematical expression and returns the AST (Abstract Syntax Tree) as a dictionary.",
+                "ru": "Разбирает математическое выражение и возвращает AST (абстрактное синтаксическое дерево) в виде словаря."
+            },
+            "example": "x = c::copy(array)",
+            "args": [
+                { "name": "copyable", "type": "any", "required": true }
+            ],
+            "returns": "dict|string|allarray"
+        }
+    }
+}

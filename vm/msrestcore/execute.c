@@ -117,7 +117,7 @@ int msrest_execute(Program *prog)
         [0x70] = &&OP_70,
 
         [0x76] = &&OP_76,
-        [0x77] = NULL, // на будущее
+        [0x77] = &&OP_77,
         [0x78] = NULL, // здесь было одно провальное решение
         [0x79] = &&OP_79,
         [0x7A] = &&OP_7A,
@@ -2108,6 +2108,32 @@ OP_76: {
 }
 
 
+OP_77: {
+
+    #if _PROFILE
+    PROF_START(); // DICT_DEFGET
+    #endif
+
+    Value def = LPOP();
+    Value key = LPOP();
+    Value dict = LPOP();
+    Value result;
+
+    if (dict_has(dict, key)) {
+        result = dict_get(dict, key);
+    } else {
+        result = def;
+    }
+    
+    LPUSH(result);
+
+    #if _PROFILE
+    PROF_END();
+    #endif
+
+    FETCH();
+    NEXT();
+}
 
 
 

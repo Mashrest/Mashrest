@@ -21,6 +21,7 @@ INTERNAL = {
  "BOOLARRAY": ["BOOLARRAY"],
  "INTARRAY": ["INTARRAY"],
  "FLOATARRAY": ["FLOATARRAY"],
+ "ALLARRAY": ["ARRAY", "INTARRAY", "BOOLARRAY", "FLOATARRAY"],
 
  "FNREF": ["FNREF"],
 }
@@ -442,10 +443,14 @@ class SemanticAnalysis:
 
         if node_type == "INDEX":
             arr_t = self.get_operand_type(node["array"])
-            if "BOOLARRAY" in arr_t: return {"BOOL"}
-            if "INTARRAY" in arr_t:  return {"NUMBER"}
-            if "FLOATARRAY" in arr_t: return {"FLOAT"}
-            return {"ANY"}
+            result = set()
+            if "BOOLARRAY" in arr_t: result.add("BOOL")
+            if "INTARRAY" in arr_t:  result.add("NUMBER")
+            if "FLOATARRAY" in arr_t: result.add("FLOAT")
+            # dict/string/any - элемент неизвестен.
+            if "DICT" in arr_t or "STRING" in arr_t or "ARRAY" in arr_t or "ANY" in arr_t or not result:
+                return {"ANY"}
+            return result
 
         if node_type == "GLOBAL": 
             # получаем тип глобальной переменной.
@@ -1011,14 +1016,11 @@ class SemanticAnalysis:
             if argslen != 0:
                 self.error(f"'pop' takes no arguments, got {argslen}", obj)
             # pop возвращает элемент массива.
-            if "BOOLARRAY" in obj_type:     
-                self._annotate(node, {"BOOL"})
-            elif "INTARRAY" in obj_type:    
-                self._annotate(node, {"NUMBER"})
-            elif "FLOATARRAY" in obj_type:     
-                self._annotate(node, {"FLOAT"})
-            else:       
-                self._annotate(node, {"ANY"})
+            if "BOOLARRAY" in obj_type:     self._annotate(node, {"BOOL"})
+            elif "INTARRAY" in obj_type:    self._annotate(node, {"NUMBER"})
+            elif "FLOATARRAY" in obj_type:  self._annotate(node, {"FLOAT"})
+            else:                           self._annotate(node, {"ANY"})
+
             return
 
         if method == "len":
@@ -1079,6 +1081,30 @@ class SemanticAnalysis:
                 self.error(f"'values' takes no arguments, got {argslen}", obj)
                 return
             self._annotate(node, {"ARRAY"})
+            return
+
+        if method == "get":
+            result_types = {"ANY"}
+            if not (obj_type & ({"DICT", "ANY"})):
+                self.error(f"'get' can only be called on dicts, got {self._format_type(obj_type)}", obj)
+                return
+            
+            if argslen >= 1:
+                key_type = self.get_operand_type(args[0])
+                if "ANY" not in obj_type and "ANY" not in key_type:
+                    if "STRING" not in key_type:
+                        self.error(f"Dictionary key must be STRING, got {self._format_type(key_type)}", args[0])
+                        
+            if argslen not in (1, 2):
+                self.error(f"'get' takes 1 or 2 arguments, got {argslen}", obj)
+                return
+            if argslen == 2:
+                default_type = self.get_operand_type(args[1])
+                # не добавляем мусор.
+                if default_type and not (default_type & {"ANY", "ERROR"}):
+                    result_types |= default_type
+
+            self._annotate(node, result_types)
             return
         
         # неизвестный метод.

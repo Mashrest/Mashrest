@@ -67,7 +67,8 @@ MsrestAPI msrest_api = {
     .dict_get = dict_get,
     .dict_has = dict_has,
     .dict_delete = dict_delete,
-    .dict_size = dict_size
+    .dict_size = dict_size,
+    .dict_keys = dict_keys,
 
 };
 
@@ -614,7 +615,7 @@ Value string_to_value(const char *s)
     return v;
 }
 
-IntArray *intarray_new(int size) {
+IntArray *intarray_new(uint32_t size) {
     IntArray *arr = gc_alloc(sizeof(IntArray), MSREST_INT_ARRAY);
     arr->size = size;
     arr->capacity = (size > 8) ? size : 8;
@@ -622,7 +623,7 @@ IntArray *intarray_new(int size) {
     return arr;
 }
 
-Value array_new(int size)
+Value array_new(uint32_t size)
 {
     Array *arr = gc_alloc(sizeof(Array), MSREST_ARRAY);
 
@@ -1386,7 +1387,7 @@ int Mvalidate_program_opcodes(Program *prog)
         0x50,
         0x58, 0x59,
         0x60, 0x66, 0x68,
-        0x70, 0x76, 0x79, 0x7A,
+        0x70, 0x76, 0x77, 0x79, 0x7A,
         0x82, 0x83, 0x85,
         0xA0, 0xA1,
         0xBB, 0xEE

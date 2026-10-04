@@ -361,8 +361,8 @@ static inline Value null_to_value(void)
 }
 
 /* Array functions */
-Value array_new(int capacity);
-IntArray *intarray_new(int size);
+Value array_new(uint32_t capacity);
+IntArray *intarray_new(uint32_t size);
 
 void array_push(Value v, Value value);
 Value array_pop(Value v);

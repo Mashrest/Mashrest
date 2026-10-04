@@ -151,6 +151,7 @@ class BytecodeGenerator:
             "keys": self._handle_dict_op,
             "pairs": self._handle_dict_op,
             "values": self._handle_dict_op,
+            "get": self._handle_dict_op,
         }
         self.opcode_handlers = self.build_opcode_hdlrs()
         self.intermediate_data = self.build_intrmd_data()
@@ -621,12 +622,21 @@ class BytecodeGenerator:
 
     def _handle_dict_op(self, node):
         method = node.get("method")
+        args = node["args"]
         if method == "pairs":
             self.emit(f"DICT_METHOD {DPAIRS}")
         elif method == "keys":
             self.emit(f"DICT_METHOD {DKEYS}")
         elif method == "values":
             self.emit(f"DICT_METHOD {DVALUES}")
+        elif method == "get":
+            self.generate(args[0])
+
+            if len(args) == 1:
+                self.emit("PUSH_NULL")
+            else:
+                self.generate(args[1])
+            self.emit("DICT_GET")
 
     def _handle_binop(self, node, op):
         self.generate(node["left"])

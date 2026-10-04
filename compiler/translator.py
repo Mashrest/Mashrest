@@ -62,6 +62,7 @@ REPLACEMENTS = {
     "ARR_OP": "70",
 
     "DICT_NEW": "76",
+    "DICT_GET": "77",
     "DICT_DEL": "79",
     "DICT_METHOD": "7A",
 

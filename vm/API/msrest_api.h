@@ -122,7 +122,7 @@ typedef struct {
     void (*array_set)(Value, uint32_t, Value);
     void (*array_push)(Value, Value);
     Value (*array_pop)(Value);
-    Value (*array_new)(int capacity);
+    Value (*array_new)(uint32_t capacity);
 
     uint32_t (*string_bytes)(Value);
     uint32_t (*string_chars)(Value);
