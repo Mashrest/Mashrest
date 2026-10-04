@@ -14,4 +14,7 @@ dict["info"] = "lives in Finland"
 // returns a boolean value (was the value removed?)
 movoutln("deleted with code " + dict.remove("age")) 
 movoutln("Keys: " + dict.keys())
+movoutln("Values: " + dict.values())
+movoutln("Pairs: " + dict.pairs())
+movoutln("Length: " + dict.len())
 movoutln(dict)

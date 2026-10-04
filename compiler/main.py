@@ -11,8 +11,8 @@ import json
 import os
 
 
-DEBUG = False
-DIS = False
+DEBUG = True
+DIS = True
 
 
 """COLORS = {
@@ -113,6 +113,7 @@ def disassemble(instructions):
         "RET": "возврат из функции",
         "HALT": "остановка\n",
         "STORE_LOCAL": "сохранить в локальную переменную #{}",
+        "CONT_GET": "получить значение из контейнера по ключу",
         "LOAD": "загрузить переменную '{}'",
         "PUSH": "положить в стек: {}",
         "PUSH_BOOL": "положить в стек: {}",

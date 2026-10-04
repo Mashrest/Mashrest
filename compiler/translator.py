@@ -43,8 +43,8 @@ REPLACEMENTS = {
 
     "ARR_POP": "3B", #2
     "ARR": "3C", #1
-    "ARR_SET": "3D", #0
-    "ARR_GET": "3E", #0
+    "CONT_SET": "3D", #0
+    "CONT_GET": "3E", #0
     "LEN": "3F", #0
 
     "ARR_PUSH_MANY": "43", #1
@@ -62,9 +62,8 @@ REPLACEMENTS = {
     "ARR_OP": "70",
 
     "DICT_NEW": "76",
-    "DICT_GET": "77",
-    "DICT_SET": "78",
     "DICT_DEL": "79",
+    "DICT_METHOD": "7A",
 
     "LLADD": "80",
     "LLSUB": "81",

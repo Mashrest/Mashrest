@@ -42,9 +42,13 @@ enum {
     TO_FLOAT,
     TO_BOOL,
     TO_STR,
-    TO_ARRAY,
-    DICT_KEYS = 8,
+    STR_BYTELEN = 8
+};
+
+enum {
+    DICT_KEYS = 1,
     DICT_PAIRS,
+    DICT_VALUES,
 };
 
 enum {
@@ -392,6 +396,7 @@ uint32_t dict_size(Value dict_val);
 char* dict_to_string(Dict *d);
 Value dict_keys(Value dict_val);
 Value dict_pairs(Value dict_val);
+Value dict_values(Value dict_val);
 
 /* < TYPEOF NAMES > */
 

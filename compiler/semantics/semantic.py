@@ -1042,31 +1042,41 @@ class SemanticAnalysis:
             return
 
         if method == "remove":
-            if not (obj_type & (ARRAY_TYPES | {"DICT", "ANY"})):
+            if not (obj_type &  {"DICT", "ANY"}):
                 self.error(f"'remove' can only be called on dicts, got {self._format_type(obj_type)}", obj)
                 return
-            if argslen > 255:
-                self.error(f"'remove' can only accept 0..255 args, got {argslen}", obj)
+            if argslen != 1:
+                self.error(f"'remove' can only accept 1 args, got {argslen}", obj)
                 return
             self._annotate(node, {"BOOL"})
             return
 
         if method == "keys":
-            if not (obj_type & (ARRAY_TYPES | {"DICT", "ANY"})):
+            if not (obj_type & {"DICT", "ANY"}):
                 self.error(f"'keys' can only be called on dicts, got {self._format_type(obj_type)}", obj)
                 return
-            if argslen > 255:
+            if argslen > 0:
                 self.error(f"'keys' takes no arguments, got {argslen}", obj)
                 return
             self._annotate(node, {"ARRAY"})
             return
 
         if method == "pairs":
-            if not (obj_type & (ARRAY_TYPES | {"DICT", "ANY"})):
+            if not (obj_type & {"DICT", "ANY"}):
                 self.error(f"'pairs' can only be called on dicts, got {self._format_type(obj_type)}", obj)
                 return
-            if argslen > 255:
+            if argslen > 0:
                 self.error(f"'pairs' takes no arguments, got {argslen}", obj)
+                return
+            self._annotate(node, {"ARRAY"})
+            return
+
+        if method == "values":
+            if not (obj_type & {"DICT", "ANY"}):
+                self.error(f"'values' can only be called on dicts, got {self._format_type(obj_type)}", obj)
+                return
+            if argslen > 0:
+                self.error(f"'values' takes no arguments, got {argslen}", obj)
                 return
             self._annotate(node, {"ARRAY"})
             return

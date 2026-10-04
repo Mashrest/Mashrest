@@ -1,2 +1,11 @@
 var dict = {"name": "igor", "age": {"name": 9475}}
-movoutln(dict.pairs())
+var text = [10, 20, 30, 40]
+
+flow a(x, u)
+    u[2] = 10000
+    x["age"] = 200
+    return
+
+a(dict, text)
+movoutln(dict)
+movoutln(text)

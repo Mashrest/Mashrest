@@ -117,11 +117,11 @@ int msrest_execute(Program *prog)
         [0x70] = &&OP_70,
 
         [0x76] = &&OP_76,
-        [0x77] = &&OP_77,
-        [0x78] = &&OP_78,
+        [0x77] = NULL, // на будущее
+        [0x78] = NULL, // здесь было одно провальное решение
         [0x79] = &&OP_79,
+        [0x7A] = &&OP_7A,
 
-        [0x80] = &&OP_80,
         [0x82] = &&OP_82,
         [0x83] = &&OP_83,
         [0x85] = &&OP_85,
@@ -1405,44 +1405,55 @@ OP_3C: {
 
 OP_3D: {
     #if _PROFILE
-    PROF_START(); // ARRAY_SET
+    PROF_START(); // CONT_SET
     #endif
 
-    Value val = LPOP();
-    int64_t index = value_to_int(LPOP());
-    Value arr_val = LPOP();
+    Value val  = LPOP();
+    Value key  = LPOP();
+    Value cont = LPOP();
 
-    switch(arr_val.type) {
+    switch (cont.type) {
+
         case MSREST_ARRAY: {
-            Array *arr = arr_val.array;
+            Array *arr = cont.array;
+            int64_t index = value_to_int(key);
             arr->values[index] = val;
             if (vm->gc.phase != GC_IDLE) {
-                mark_value(val); }
+                mark_value(val);
+            }
             break;
         }
         case MSREST_INT_ARRAY: {
-            IntArray *arr = arr_val.int_array;
-            arr->values[index] = value_to_int(val);
+            IntArray *arr = cont.int_array;
+            arr->values[value_to_int(key)] = value_to_int(val);
             break;
         }
         case MSREST_FLOAT_ARRAY: {
-            FloatArray *arr = arr_val.float_array;
-            arr->values[index] = value_to_double(val);
+            FloatArray *arr = cont.float_array;
+            arr->values[value_to_int(key)] = value_to_double(val);
             break;
         }
         case MSREST_BOOL_ARRAY: {
-            BoolArray *arr = arr_val.bool_array;
-            arr->values[index] = value_to_int(val);
+            BoolArray *arr = cont.bool_array;
+            arr->values[value_to_int(key)] = value_to_int(val);
             break;
         }
-        case MSREST_STRING: {
+
+        case MSREST_STRING:
             msrest_panic("Access violation error: Cannot mutate element in string\n");
+
+        case MSREST_DICT: {
+            if (key.type != MSREST_STRING) {
+                msrest_panic("'CONT_SET' on DICT expects STRING key, got %s\n",
+                             type_name(key.type));
+            }
+            dict_set(cont, key, val);
             break;
         }
-        default: { 
-            msrest_panic("Type error: 'set element' expected ARRAY, got %s\n", type_name(arr_val.type));             
-            break;
-        }
+
+        default:
+            msrest_panic("Type error: 'set element' expected ARRAY or DICT, got %s\n",
+                         type_name(cont.type));
     }
 
     #if _PROFILE
@@ -1454,82 +1465,92 @@ OP_3D: {
 }
 
 
-OP_3E: {
+OP_3E: {  // CONT_GET
     #if _PROFILE
-    PROF_START();   //ARRAY_GET
+    PROF_START(); // CONT_GET
     #endif
-    
-    uint64_t index = value_to_int(LPOP());
-    Value obj = LPOP();
+
+    Value key  = LPOP();
+    Value cont = LPOP();
     Value result;
 
-    switch (obj.type) {
-        
-        case MSREST_ARRAY: {
-            result = array_get(obj, index);
+    switch (cont.type) {
+
+        case MSREST_ARRAY:
+            result = array_get(cont, value_to_int(key));
             break;
-        }
-        case MSREST_INT_ARRAY: {
-            result = int_to_value(iarray_get(obj, index));
+        case MSREST_INT_ARRAY:
+            result = int_to_value(iarray_get(cont, value_to_int(key)));
             break;
-        }
-        case MSREST_FLOAT_ARRAY: {
-            result = float_to_value(farray_get(obj, index));
+        case MSREST_FLOAT_ARRAY:
+            result = float_to_value(farray_get(cont, value_to_int(key)));
             break;
-        }
-        case MSREST_BOOL_ARRAY: {
-            result = bool_to_value(barray_get(obj, index));
+        case MSREST_BOOL_ARRAY:
+            result = bool_to_value(barray_get(cont, value_to_int(key)));
             break;
-        }
+
+        // неэффективно, ну да ладно.
+        // пока что ищем вручную через руны.
         case MSREST_STRING: {
-            String* str = obj.string;
-            
+            int64_t index = value_to_int(key);
+            String *str = cont.string;
+
             if (index < 0 || (uint64_t)index >= str->chars) {
-                    msrest_panic("Access violation error: String index out of bounds: %lld (string length=%u)\n",
-                        (long long)index, str->chars);
+                msrest_panic(
+                    "Access violation error: String index out of bounds: "
+                    "%lld (string length=%u)\n",
+                    (long long)index, str->chars);
             }
-                
-            // найти позицию N-го символа.
-            // я понимаю, что это O(n), но пока чтобы не раздувать строки.
-            // просто напишу библиотеку, если что.
+
             size_t pos = 0;
             uint32_t current = 0;
             uint32_t len = str->length;
             while (pos < len && current < index) {
                 uint8_t c = (uint8_t)str->data[pos];
-                if ((c & 0x80) == 0) pos += 1;
+                if      ((c & 0x80) == 0)    pos += 1;
                 else if ((c & 0xE0) == 0xC0) pos += 2;
                 else if ((c & 0xF0) == 0xE0) pos += 3;
                 else if ((c & 0xF8) == 0xF0) pos += 4;
-                else pos += 1;
+                else                         pos += 1;
                 current++;
             }
-            
-            // длина символа в байтах
+
             uint8_t c = (uint8_t)str->data[pos];
             size_t char_bytes;
-            if ((c & 0x80) == 0) char_bytes = 1;
+            if      ((c & 0x80) == 0)    char_bytes = 1;
             else if ((c & 0xE0) == 0xC0) char_bytes = 2;
             else if ((c & 0xF0) == 0xE0) char_bytes = 3;
             else if ((c & 0xF8) == 0xF0) char_bytes = 4;
-            else char_bytes = 1;
-            
-            // копируем символ
-            char* tmp = safe_malloc(char_bytes + 1);
+            else                         char_bytes = 1;
+
+            char *tmp = safe_malloc(char_bytes + 1);
             memcpy(tmp, str->data + pos, char_bytes);
             tmp[char_bytes] = '\0';
-            result = string_to_value(tmp); 
+            result = string_to_value(tmp);
             free(tmp);
             break;
         }
-        default: msrest_panic("Acess violation error: %s object is not indexable\n", type_name(obj.type));
+
+        case MSREST_DICT: {
+            if (key.type != MSREST_STRING) {
+                msrest_panic("Type error: 'CONT_GET' on DICT expects STRING key, got %s\n",
+                             type_name(key.type));
+            }
+            result = dict_get(cont, key);
+            break;
+        }
+
+        default:
+            msrest_panic("Access violation error: %s object is not indexable\n",
+                         type_name(cont.type));
     }
+
     LPUSH(result);
-    
+
     #if _PROFILE
     PROF_END();
     #endif
-    
+
     FETCH();
     NEXT();
 }
@@ -1541,13 +1562,13 @@ OP_3F: {
 
     Value v = LPOP();
     Value result = {0};
-
     switch(v.type) {
         case MSREST_ARRAY: result = int_to_value(v.array->size); break;
         case MSREST_STRING: result = int_to_value(v.string->chars); break;
         case MSREST_INT_ARRAY: result = int_to_value(v.int_array->size); break;
         case MSREST_FLOAT_ARRAY: result = int_to_value(v.float_array->size); break;
         case MSREST_BOOL_ARRAY:  result = int_to_value(v.bool_array->size); break;
+        case MSREST_DICT: result = int_to_value(v.dictionary->size); break;
         default: msrest_panic("Type error: len() expected ARRAY or STRING, got %s\n", type_name(v.type));
     }
     LPUSH(result);
@@ -2087,44 +2108,8 @@ OP_76: {
 }
 
 
-OP_77: {
-    #if _PROFILE
-    PROF_START(); // DICT_GET
-    #endif
 
 
-    Value key = LPOP();
-    Value dict = LPOP();
-    Value ans = dict_get(dict, key);
-    LPUSH(ans);
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
-}
-
-
-OP_78: {
-    #if _PROFILE
-    PROF_START(); // DICT_SET
-    #endif
-
-    Value key = LPOP();
-    Value dict = LPOP();
-    Value what = LPOP();
-
-    dict_set(dict, key, what);
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
-}
 
 
 OP_79: {
@@ -2146,21 +2131,28 @@ OP_79: {
 }
 
 
-OP_80: {
+OP_7A: {
     #if _PROFILE
-    PROF_START(); // LLADD
+    PROF_START(); // DICT_METHODS
     #endif
 
-    Value a = vm->variables[ins.arg1];
-    Value b = vm->variables[ins.arg2];
-    LPUSH(int_to_value(a.integer + b.integer));
+    uint32_t method = ins.arg1;
+    Value v = LPOP();
+    Value res;
 
+    switch (method) {
+        case DICT_KEYS: res = dict_keys(v); break;
+        case DICT_PAIRS: res = dict_pairs(v); break;
+        case DICT_VALUES: res = dict_values(v); break;
+        default: msrest_panic("Unknown static method id: %u\n", method);
+    }
+    LPUSH(res);
     #if _PROFILE
     PROF_END();
     #endif
 
     FETCH();
-    NEXT();
+    NEXT(); 
 }
 
 OP_82: {
@@ -2377,8 +2369,7 @@ static Value invoke_static(uint32_t method, Value v)
         case TO_FLOAT: return invoke_static_float(v);
         case TO_STR:   return invoke_static_str(v);
         case TO_BOOL:  return bool_to_value(value_to_bool(v));
-        case DICT_KEYS: return dict_keys(v);
-        case DICT_PAIRS: return dict_pairs(v);
+        case STR_BYTELEN: return int_to_value(string_bytes(v));
         default:
             msrest_panic("Unknown static method id: %u\n", method);
     }

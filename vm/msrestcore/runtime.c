@@ -701,7 +701,7 @@ Value dict_new(void) {
 Value dict_keys(Value dict_val) 
 {
     if (dict_val.type != MSREST_DICT)
-        msrest_panic("[VM-ERR] dict_keys: expected dictionary");
+        msrest_panic("[VM-ERR] dict.keys(): expected dictionary");
     
     Dict *d = dict_val.dictionary;
     
@@ -720,6 +720,38 @@ Value dict_keys(Value dict_val)
             
             /* array_set принимает Value массив и Value ключ */
             array_set(array_val, idx, key_val);
+            idx++;
+            entry = entry->next;
+        }
+    }
+    
+    return array_val;
+}
+
+
+Value dict_values(Value dict_val) 
+{
+    if (dict_val.type != MSREST_DICT)
+        msrest_panic("[VM-ERR] dict.values(): expected dictionary");
+    
+    Dict *d = dict_val.dictionary;
+    
+    /* создаём массив нужного размера */
+    Value array_val = array_new(d->size);
+    uint32_t idx = 0;
+    
+    /* проходим по всем корзинам */
+    for (uint32_t i = 0; i < d->capacity; i++) {
+        DictEntry *entry = d->buckets[i];
+        while (entry) {
+            /* кладём ключ в массив */
+            Value key_val;
+            key_val.type = MSREST_STRING;
+            key_val.string = entry->key;
+            Value data = dict_get(dict_val, key_val);
+            
+            /* array_set принимает Value массив и Value ключ */
+            array_set(array_val, idx, data);
             idx++;
             entry = entry->next;
         }
@@ -1354,8 +1386,8 @@ int Mvalidate_program_opcodes(Program *prog)
         0x50,
         0x58, 0x59,
         0x60, 0x66, 0x68,
-        0x70, 0x76, 0x77, 0x78, 0x79,
-        0x80, 0x82, 0x83, 0x85,
+        0x70, 0x76, 0x79, 0x7A,
+        0x82, 0x83, 0x85,
         0xA0, 0xA1,
         0xBB, 0xEE
     };
