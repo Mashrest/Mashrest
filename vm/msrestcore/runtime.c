@@ -1249,7 +1249,7 @@ int load_constants(uint8_t *code, int pos, Value *constant_pool, int constant_co
         int len = read_int(code + pos);
         pos += 4;
 
-            if (len <= 0 || len > 0xCCCCCCCC) {
+            if (len < 0 || len > 0xCCCCCCCC) {
                 msrest_panic("Invalid string length: %d", len);
             }
 
@@ -1280,14 +1280,30 @@ int load_constants(uint8_t *code, int pos, Value *constant_pool, int constant_co
 }
 
 Program* load_program(const char *filename) {
+
     FILE *f = fopen(filename, "rb");
     if (!f) {
         msrest_panic("Cannot open file: %s\n", filename);
     }
+    
+    fseek(f, 0, SEEK_END);
+    long file_size_long = ftell(f);
+    rewind(f);
 
-    uint8_t *code = safe_malloc(65536);
-    int file_size = fread(code, 1, 65536, f);
+    if (file_size_long <= 0 || file_size_long > INT_MAX) {
+        fclose(f);
+        msrest_panic("File too big or empty: %s\n", filename);
+    }
+
+    int file_size = (int)file_size_long;
+    uint8_t *code = safe_malloc(file_size);
+    size_t got = fread(code, 1, file_size, f);
     fclose(f);
+
+    if ((int)got != file_size) {
+        free(code);
+        msrest_panic("Short read: %s\n", filename);
+    }
 
     int header_start = find_marker(code, file_size, 0xEA, 0);
     int import_start = find_marker(code, file_size, 0xED, 0);

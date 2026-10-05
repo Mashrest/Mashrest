@@ -183,6 +183,16 @@
         { "name": "data", "type": "dict", "required": true }
       ],
       "returns": "string"
+    },
+    
+    "join": {
+      "description": "Concatenates all string elements of `array` into a single string, inserting `separator` between adjacent elements. If `separator` is omitted, an empty string is used.",
+      "example": "s::join([\"a\", \"b\", \"c\"], \",\") -> \"a,b,c\"",
+      "args": [
+        { "name": "array",     "type": "array",  "required": true },
+        { "name": "separator", "type": "string", "required": false, "default": "" }
+      ],
+      "returns": "string"
     }
   }
 }

@@ -35,6 +35,8 @@
 #define GC_STEP_COUNT 1750
 #define GC_INTERVAL_BYTES (GC_INTERVAL * 9)
 
+#define MAX_IMPORTS 4096
+
 
 /* < ENUM DECLARATIONS > */
 enum {
@@ -201,6 +203,7 @@ static inline void check_type(uint8_t required, uint8_t got)
                type_names[required], 
                type_names[got]);}
 }
+
 
 static inline uint8_t soft_check_type(uint8_t required, uint8_t got)
 {

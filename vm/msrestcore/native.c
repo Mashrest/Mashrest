@@ -1,14 +1,19 @@
 #include "native.h"
 
 
-NativeFunc native_table[256] = {0};
+NativeFunc native_table[MAX_IMPORTS] = {0};
 
-static HMODULE loaded_modules[256];
+static HMODULE loaded_modules[MAX_IMPORTS];
 static int loaded_count = 0;
 
 void load_imports(Program *prog)
 {
     //printf("Loading native imports...\n");
+
+    if (prog->import_count > MAX_IMPORTS) {
+        printf("Too many imports: %d (max %d)\n", prog->import_count, MAX_IMPORTS);
+        exit(1);
+    }
 
     for (int i = 0; i < prog->import_count; i++)
     {

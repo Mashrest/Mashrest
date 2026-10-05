@@ -8,6 +8,15 @@
 #include <string.h>
 
 
+static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
+{
+    if (required != got) {
+        api->msrest_panic("[STRINGS] Type error: %s() Required: %s, Got: %s\n", 
+            funcname, type_names[required], type_names[got]);
+    }
+}
+
+
 // UTF-8 утилиты.
 
 static uint32_t utf8_decode(const uint8_t* data) {
@@ -108,7 +117,7 @@ static int is_unicode_space(uint32_t cp) {
 
 static uint32_t require_char(MsrestAPI* api, Value* args, int argc, const char* func) {
     if (argc != 1) api->msrest_panic("[STRINGS] %s() expects 1 argument, got %d", func, argc);
-    api->check_type(MSREST_STRING, args[0].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, func);
     
     const char* str = api->string_data(args[0]);
     if (api->string_chars(args[0]) != 1) {
@@ -122,10 +131,9 @@ static uint32_t require_char(MsrestAPI* api, Value* args, int argc, const char* 
 static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
     if (argc != 1) api->msrest_panic("[STRINGS] %s() expects 1 argument, got %d", 
                                      to_upper ? "upper" : "lower", argc);
-    api->check_type(MSREST_STRING, args[0].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, to_upper ? "upper" : "lower");
     
     const char* str = api->string_data(args[0]);
-    if (!str) api->msrest_panic("[STRINGS] %s() received NULL string", to_upper ? "upper" : "lower");
     
     size_t char_len = (size_t)api->string_chars(args[0]);
     if (char_len == 0) return api->string_new_len("", 0);
@@ -262,7 +270,7 @@ EXPORT Value lower(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value ord(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_STRING, args[0].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "ord");
     
     const char* str = api->string_data(args[0]);
     size_t char_len = (size_t)api->string_chars(args[0]);
@@ -285,7 +293,7 @@ EXPORT Value ord(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    int type = api->value_type(args[0]);
+    uint8_t type = api->value_type(args[0]);
     
     if (type == MSREST_INT) {
         int32_t cp = (int32_t)api->value_to_int(args[0]);
@@ -299,7 +307,7 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
     }
     
     if (type == MSREST_ARRAY) {
-        int len = api->array_size(args[0]);
+        uint32_t len = api->array_size(args[0]);
         uint32_t* cp = safe_malloc(api, len * sizeof(uint32_t));
         
         for (int i = 0; i < len; i++) {
@@ -330,8 +338,8 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value contains(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 2);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_STRING, args[1].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "contains");
+    lib_check_type(api, MSREST_STRING, args[1].type, "contains");
     
     const char* str = api->string_data(args[0]);
     const char* sub = api->string_data(args[1]);
@@ -340,8 +348,8 @@ EXPORT Value contains(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value find(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 2);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_STRING, args[1].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "find");
+    lib_check_type(api, MSREST_STRING, args[1].type, "find");
     
     const char* str = api->string_data(args[0]);
     const char* sub = api->string_data(args[1]);
@@ -362,10 +370,9 @@ EXPORT Value find(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value trim(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_STRING, args[0].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "trim");
 
     const char* str = api->string_data(args[0]);
-    if (!str) api->msrest_panic("[STRINGS] trim(): NULL string");
 
     size_t byte_len = api->string_bytes(args[0]);
     if (byte_len == 0) return api->string_new_len("", 0);
@@ -458,9 +465,9 @@ EXPORT Value is_hex(MsrestAPI* api, Value* args, int argc) {
 
 EXPORT Value substr(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 3);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_INT, args[1].type);
-    api->check_type(MSREST_INT, args[2].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "substr");
+    lib_check_type(api, MSREST_INT, args[1].type, "substr");
+    lib_check_type(api, MSREST_INT, args[2].type, "substr");
     
     const char* str = api->string_data(args[0]);
     size_t byte_len = strlen(str);
@@ -506,8 +513,8 @@ EXPORT Value substr(MsrestAPI* api, Value* args, int argc) {
 /* основная функция форматирования */
 EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 2);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_DICT, args[1].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "format");
+    lib_check_type(api, MSREST_DICT, args[1].type, "format");
     
     const char* template = api->string_data(args[0]);
     size_t template_len = api->string_bytes(args[0]);
@@ -589,7 +596,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
             }
 
             Value val = api->dict_get(dict, key_val);
-            int val_type = api->value_type(val);
+            uint8_t val_type = api->value_type(val);
             
             char* val_str;
             if (precision >= 0 && val_type == MSREST_FLOAT) {
@@ -603,12 +610,6 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                 val_str = safe_strdup(buf);
             } else {
                 val_str = api->value_to_string(val);
-            }
-            
-            if (!val_str) {
-                free(key_cstr);
-                free(result);
-                api->msrest_panic("[STRINGS] format(): value_to_string returned NULL");
             }
             
             size_t val_len = strlen(val_str);
@@ -649,4 +650,56 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
     free(result);
     
     return result_val;
+}
+
+EXPORT Value join(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 2);
+    lib_check_type(api, MSREST_ARRAY, args[0].type, "join");
+    lib_check_type(api, MSREST_STRING, args[1].type, "join");
+
+
+    Value array = args[0];
+    uint32_t size = api->array_size(array);
+    if (size == 0) {
+        return api->string_new_len("", 0);
+    }
+
+    for (int64_t i = 0; i < (int64_t)size; i++) {
+        uint8_t eltype = api->value_type(api->array_get(array, i));
+        lib_check_type(api, MSREST_STRING, eltype, "join");
+    }
+
+    const char *sep = api->string_data(args[1]);
+    uint32_t sep_len  = api->string_bytes(args[1]);
+
+    const char **ptrs = safe_malloc(api, (sizeof(const char*) * size));
+    uint32_t *lens = safe_malloc(api, (sizeof(uint32_t) * size));
+
+    uint32_t total = 0;
+    for (uint32_t i = 0; i < size; i++) {
+        Value v = api->array_get(array, i);
+        ptrs[i] = api->string_data(v);
+        lens[i] = api->string_bytes(v);
+
+        total  += lens[i];
+    }
+    uint32_t result_len = total + sep_len * (size - 1);
+    char* result = safe_malloc(api, result_len + 1);
+
+    char* p = result;
+    for (uint32_t i = 0; i < size; i++) {
+        memcpy(p, ptrs[i], lens[i]);
+        p += lens[i];
+        if (i + 1 < size) {
+            memcpy(p, sep, sep_len);
+            p += sep_len;
+        }
+    }
+    *p = '\0';
+
+    free(ptrs);
+    free(lens);
+    
+    return api->string_new_len(result, result_len);
 }

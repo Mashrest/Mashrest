@@ -7,7 +7,7 @@
 #include <windows.h>
 #endif
 
-extern NativeFunc native_table[256];
+extern NativeFunc native_table[MAX_IMPORTS];
 
 void load_imports(Program *prog);
 void free_imports(void);

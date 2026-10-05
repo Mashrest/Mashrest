@@ -1,11 +1,4 @@
-var dict = {"name": "igor", "age": {"name": 9475}}
-var text = [10, 20, 30, 40]
-
-flow a(x, u)
-    u[2] = 10000
-    x["age"] = 200
-    return
-
-a(dict, text)
-movoutln(dict)
+import strings as s 
+var arr = ["Hello", "World", "!"]
+var text = arr->s::join("\n")
 movoutln(text)
