@@ -703,3 +703,38 @@ EXPORT Value join(MsrestAPI* api, Value* args, int argc)
     
     return api->string_new_len(result, result_len);
 }
+
+EXPORT Value split(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 2);
+    lib_check_type(api, MSREST_STRING, args[0].type, "split");
+    lib_check_type(api, MSREST_STRING, args[1].type, "split");
+
+    const char *text = api->string_data(args[0]);
+    uint32_t text_len = api->string_bytes(args[0]);
+
+    const char *sep = api->string_data(args[1]);
+    uint32_t sep_len = api->string_bytes(args[1]);
+
+    Value out = api->array_new(0);
+
+    const char *cursor = text;
+    const char *end = text + text_len;
+
+    while (1) {
+        const char *found = strstr(cursor, sep);
+
+        if (found == NULL) {
+            uint32_t piece_len = end - cursor;
+            api->array_push(out, api->string_new_len(cursor, piece_len));
+            break;
+        }
+
+        uint32_t piece_len = found - cursor;
+        api->array_push(out, api->string_new_len(cursor, piece_len));
+
+        cursor = found + sep_len;
+    }
+
+    return out;
+}

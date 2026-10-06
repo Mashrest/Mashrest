@@ -3,7 +3,7 @@ from .parser import Parser, print_tree
 from .ast_preprocessor import preprocess_ast
 from .semantics.semantic import SemanticAnalysis
 from .bytecoder import BytecodeGenerator
-from .assembler import process_orb_file
+from .assembler import process_mrb_file
 from .translator import synthesize
 from .pusher import convert_all_with_headers, make_constant_pool, make_import_table
 import sys
@@ -11,8 +11,8 @@ import json
 import os
 
 
-DEBUG = False
-DIS = False
+DEBUG = True
+DIS = True
 
 
 """COLORS = {
@@ -150,7 +150,7 @@ def disassemble(instructions):
 
 
 def assemble_final(optimum_code, generator):
-    assembled_code, ranges = process_orb_file(optimum_code)
+    assembled_code, ranges = process_mrb_file(optimum_code)
     if DEBUG:
         print("ASSEMBLED LEN:", len(assembled_code))
 
@@ -162,15 +162,14 @@ def assemble_final(optimum_code, generator):
     pool_bytes = make_constant_pool(generator.constant_pool)
     wrapped_import_bytes = make_import_table(generator.native_imports)
     if DEBUG:
-        print(generator.native_imports)
-        print("POOL LEN:", len(pool_bytes))
-        print("IMPORT LEN:", len(wrapped_import_bytes))
+        pb_len = len(pool_bytes)
+        ib_len = len(wrapped_import_bytes)
+        print("\nCONSTANT POOL LEN:", "Empty" if pb_len == 4 else pb_len)
+        print("CONSTANT POOL:\n", generator.constant_pool)
+        print("\nIMPORT POOL LEN:", 0 if ib_len == 4 else ib_len)
+        print("IMPORT POOL:\n", generator.native_imports or "Empty")
 
     byte_result = convert_all_with_headers(final_code, pool_bytes, wrapped_import_bytes)
-    if DEBUG:
-        print("RESULT LEN:", len(byte_result))
-        print("FIRST 0xEF AT:", byte_result.find(b'\xEF' * 9))
-
     return byte_result
 
 

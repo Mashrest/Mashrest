@@ -1,4 +1,4 @@
-def process_orb_file(code):
+def process_mrb_file(code):
     labels = {}
     variables = {}
     next_slot = 0
