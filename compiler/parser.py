@@ -448,6 +448,9 @@ class Parser:
         if self.check("GLOBAL"):
             return self.parse_global()
 
+        if self.check("MUT"):
+            return self.parse_mut()
+
         if self.check("BREAK"):
             return self.parse_break()
 
@@ -1045,6 +1048,27 @@ class Parser:
                     "line": gl.line,
                     "col": gl.col,
                     "end_col": gl.col + len(gl.text)
+                    }
+
+
+    def parse_mut(self):
+        if self.cur() is not None:
+            mut = self.cur()
+            self.eat("MUT")
+
+            args = []
+            if not self.check("NEWLINE"):
+                if self.check("ID"):
+                    args.append(self.parse_or())
+                    while self.check("COMMA"):
+                        self.eat("COMMA")
+                        args.append(self.parse_or())
+
+            return {"type": "MUT",
+                    "args": args,
+                    "line": mut.line,
+                    "col": mut.col,
+                    "end_col": mut.col + len(mut.text)
                     }
 
 

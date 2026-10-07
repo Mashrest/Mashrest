@@ -256,8 +256,8 @@ class BytecodeGenerator:
             'GT': self._handle_binop,
             'MOD': self._handle_binop,
 
-            "OR": self._handle_binop,
-            "AND": self._handle_binop,
+            "OR": self._handle_logical,
+            "AND": self._handle_logical,
 
             "PRINT": self._handle_unop,
             "PRINTLN": self._handle_unop,
@@ -642,6 +642,35 @@ class BytecodeGenerator:
         self.generate(node["left"])
         self.generate(node["right"])
         self.emit(str(op.upper()))
+
+            
+    def _handle_logical(self, node, op):
+        end_label = self.new_label()
+        
+        self.generate(node["left"])
+        
+        if op == "AND":
+            short_label = self.new_label()
+            self.emit(f"JMP_IF_FALSE {short_label}")
+            
+            self.generate(node["right"])
+            self.emit(f"JMP {end_label}")
+            
+            self.emit(f"LABEL {short_label}")
+            self.emit("PUSH_BOOL 0")
+        
+        else:  # OR
+            short_label = self.new_label()
+            self.emit("NOT")
+            self.emit(f"JMP_IF_FALSE {short_label}")
+            
+            self.generate(node["right"])
+            self.emit(f"JMP {end_label}")
+            
+            self.emit(f"LABEL {short_label}")
+            self.emit("PUSH_BOOL 1")
+        
+        self.emit(f"LABEL {end_label}")
 
     def _handle_push_bool(self, node, _):
         val = node.get("value", 0)

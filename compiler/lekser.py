@@ -52,6 +52,7 @@ KEYWORDS = {
     ".": "DOT",
 
     "global": "GLOBAL",
+    "mutable": "MUT",
     "-->": "ARR_SUB",
 
 }
@@ -71,298 +72,313 @@ class Token:
         return f"{self.dtype}({self.text}) [{self.line}:{self.col}]"
 
 
-def lekse(text: str) -> list[Token]:
-    line = 0
-    col = 0
-    arr = []
-    i = 0
-    bracket_depth = 0
 
-    def advance():
-        nonlocal i, line, col
-        if i >= len(text):
+class Lekser:
+
+    def __init__(self, text):
+        self.line = 0
+        self.col = 0
+        self.arr = []
+        self.i = 0
+        self.text = text
+        self.out = []
+
+
+    def advance(self):
+        if self.i >= len(self.text):
             return
-        if text[i] == "\n":
-            line += 1
-            col = 0
+        if self.text[self.i] == "\n":
+            self.line += 1
+            self.col = 0
         else:
-            col += 1
-        i += 1
+            self.col += 1
+        self.i += 1
 
-    def parse_number(num_str: str, start_line: int, start_col: int):
+    def parse_number(self, num_str: str, start_line: int, start_col: int):
         clean_num = num_str.replace('_', '')
+
+        # --- DEBUG ---
+        print(f"[DBG parse_number] raw={num_str!r} clean={clean_num!r} "
+              f"line={start_line} col={start_col}")
 
         if '.' in clean_num:
             value = float(clean_num)
             return Token(str(value), "FLOAT", start_line, start_col, value)
 
         if clean_num.startswith('0x') or clean_num.startswith('0X'):
+            # --- DEBUG ---
+            print(f"[DBG] hex branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 16)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         elif clean_num.startswith('0o') or clean_num.startswith('0O'):
+            print(f"[DBG] oct branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 8)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         elif clean_num.startswith('0b') or clean_num.startswith('0B'):
+            print(f"[DBG] bin branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 2)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         else:
             value = int(clean_num, 10)
             return Token(clean_num, "NUMBER", start_line, start_col, value)
 
-    at_line_start = True
-    indent_stack = [0]
 
-    while i < len(text):
-        # пустая строка.
-        if i < len(text) and text[i] == "\n":
-            arr.append(Token("\\n", "NEWLINE", line, col))
-            advance()
-            at_line_start = True
-            continue
+    def lekse(self) -> list[Token]:
+        bracket_depth = 0
+        at_line_start = True
+        indent_stack = [0]
 
-        if at_line_start:
-            indent = 0
-            indent_col = col
-            indent_line = line
-
-            while i < len(text):
-                if text[i] == " ":
-                    indent += 1
-                    advance()
-                elif text[i] == "\t":
-                    indent += 4
-                    advance()
-                else:
-                    break
-
-            if i >= len(text):
-                break
-
-            if bracket_depth == 0:
-                if indent > indent_stack[-1]:
-                    indent_stack.append(indent)
-                    arr.append(Token("", "INDENT", indent_line, indent_col))   
-                elif indent < indent_stack[-1]:
-                    while indent < indent_stack[-1]:
-                        indent_stack.pop()
-                        arr.append(Token("", "DEDENT", indent_line, indent_col))  
-                    if indent != indent_stack[-1]:
-                         _syntax_error(text, indent_line, indent_col, "Unindent does not match any outer indentation level")
-
-            at_line_start = False
-            if i >= len(text):
-                break
-
-        # многострочный комментарий ^^ ... ^^.
-        if text[i] == '^' and i + 1 < len(text) and text[i + 1] == '^':
-            advance()
-            advance()
-            while i < len(text):
-                if text[i] == '^' and i + 1 < len(text) and text[i + 1] == '^':
-                    advance()
-                    advance()
-                    break
-                else:
-                    advance()
-            continue
-
-        # строки и выскакивающие последовательности (\n, \t)
-        if text[i] == '"':
-            start_line = line
-            start_col = col
-            string_content = ""
-            advance()
-
-            while i < len(text):
-                if text[i] == '\\':
-                    advance()
-                    if i >= len(text):
-                        _syntax_error(text, start_line, start_col, "Unexpected end of string")
-                    escapes = {
-                        'n': '\n',
-                        't': '\t',
-                        'r': '\r',
-                        '\\': '\\',
-                        '"': '"',
-                        "'": "'",
-                        '0': '\0'
-                    }
-                    string_content += escapes.get(text[i], text[i])
-                    advance()
-                elif text[i] == '"':
-                    advance()
-                    break
-                else:
-                    string_content += text[i]
-                    advance()
-
-            arr.append(Token(f'"{string_content}"', "STRING", start_line, start_col, string_content))
-            continue
-
-        # монострочный комментарий.
-        if text[i] == '/' and i + 1 < len(text) and text[i + 1] == '/':
-            while i < len(text) and text[i] != '\n':
-                advance()
-            continue
-
-        # новая строка.
-        if text[i] == "\n":
-            arr.append(Token("\\n", "NEWLINE", line, col))
-            advance()
-            at_line_start = True
-            continue
-
-        if text[i] in " \t\r":
-            advance()
-            continue
-
-        # слова/идентификаторы.
-        if text[i].isalpha() or text[i] == "_":
-            start_line = line
-            start_col = col
-            word = ""
-            while i < len(text) and (text[i].isalnum() or text[i] == "_"):
-                word += text[i]
-                advance()
-            token_type = KEYWORDS.get(word, "ID")
-            arr.append(Token(word, token_type, start_line, start_col))
-            continue
-
-        # числа.
-        if text[i].isdigit() or (text[i] == '0' and i + 1 < len(text) and text[i + 1].lower() in 'xob'):
-            start_line = line
-            start_col = col
-            num_str = ""
-
-            if text[i] == '0' and i + 1 < len(text) and text[i + 1].lower() in 'xob':
-                prefix = text[i] + text[i + 1].lower()
-                num_str += prefix
-                advance()
-                advance()
-
-                if prefix == '0x':
-                    while i < len(text) and (text[i].isdigit() or text[i].lower() in 'abcdef' or text[i] == '_'):
-                        if text[i] != '_':
-                            num_str += text[i]
-                        advance()
-                elif prefix == '0o':
-                    while i < len(text) and (text[i] in '01234567' or text[i] == '_'):
-                        if text[i] != '_':
-                            num_str += text[i]
-                        advance()
-                elif prefix == '0b':
-                    while i < len(text) and (text[i] in '01' or text[i] == '_'):
-                        if text[i] != '_':
-                            num_str += text[i]
-                        advance()
-
-                arr.append(parse_number(num_str, start_line, start_col))
+        while self.i < len(self.text):
+            # пустая строка.
+            if self.i < len(self.text) and self.text[self.i] == "\n":
+                self.arr.append(Token("\\n", "NEWLINE", self.line, self.col))
+                self.advance()
+                at_line_start = True
                 continue
 
-            is_float = False
+            if at_line_start:
+                indent = 0
+                indent_col = self.col
+                indent_line = self.line
 
-            while i < len(text) and (text[i].isdigit() or text[i] == '_'):
-                if text[i] != '_':
-                    num_str += text[i]
-                advance()
+                while self.i < len(self.text):
+                    if self.text[self.i] == " ":
+                        indent += 1
+                        self.advance()
+                    elif self.text[self.i] == "\t":
+                        indent += 4
+                        self.advance()
+                    else:
+                        break
 
-            if i < len(text) and text[i] == '.':
-                num_str += '.'
-                advance()
-                is_float = True
+                if self.i >= len(self.text):
+                    break
 
-                while i < len(text) and (text[i].isdigit() or text[i] == '_'):
-                    if text[i] != '_':
-                        num_str += text[i]
-                    advance()
+                if bracket_depth == 0:
+                    if indent > indent_stack[-1]:
+                        indent_stack.append(indent)
+                        self.arr.append(Token("", "INDENT", indent_line, indent_col))   
+                    elif indent < indent_stack[-1]:
+                        while indent < indent_stack[-1]:
+                            indent_stack.pop()
+                            self.arr.append(Token("", "DEDENT", indent_line, indent_col))  
+                        if indent != indent_stack[-1]:
+                            self._syntax_error(self.text, indent_line, indent_col, "Unindent does not match any outer indentation level")
 
-            if is_float:
-                value = float(num_str)
-                arr.append(Token(str(value), "FLOAT", start_line, start_col, value))
-            else:
-                arr.append(Token(num_str, "NUMBER", start_line, start_col, int(num_str)))
-            continue
+                at_line_start = False
+                if self.i >= len(self.text):
+                    break
 
-        # двойные символы.
-        if i + 1 < len(text):
-            two = text[i] + text[i + 1]
-            if two == "==":
-                arr.append(Token("==", "EQEQ", line, col))
-                advance(); advance(); continue
-            elif two == "!=":
-                arr.append(Token("!=", "NOTEQ", line, col))
-                advance(); advance(); continue
-            elif two == "<=":
-                arr.append(Token("<=", "LE", line, col))
-                advance(); advance(); continue
-            elif two == ">=":
-                arr.append(Token(">=", "GE", line, col))
-                advance(); advance(); continue
-            elif two == ">>":
-                arr.append(Token(">>", "SHR", line, col))
-                advance(); advance(); continue
-            elif two == "<<":
-                arr.append(Token("<<", "SHL", line, col))
-                advance(); advance(); continue
-            elif two == "||":
-                arr.append(Token("||", "OR", line, col))
-                advance(); advance(); continue
-            elif two == "&&":
-                arr.append(Token("&&", "AND", line, col))
-                advance(); advance(); continue
-            elif two == "++":
-                arr.append(Token("++", "INC", line, col))
-                advance(); advance(); continue
-            elif two == "--":
-                arr.append(Token("--", "DEC", line, col))
-                advance(); advance(); continue
-            elif two == "+>":
-                arr.append(Token("+>", "ARR_ADD", line, col))
-                advance(); advance(); continue
-            elif two == "->":
-                arr.append(Token("->", "ARROW", line, col))
-                advance(); advance(); continue
-            elif two == "*>":
-                arr.append(Token("*>", "ARR_MUL", line, col))
-                advance(); advance(); continue
-            elif two == "::":
-                arr.append(Token("::", "DOUBLECOL", line, col))
-                advance(); advance(); continue
-            elif two == "\\\\":
-                arr.append(Token("\\\\", "IDIV", line, col))
-                advance(); advance(); continue
+            # многострочный комментарий ^^ ... ^^.
+            if self.text[self.i] == '^' and self.i + 1 < len(self.text) and self.text[self.i + 1] == '^':
+                self.advance()
+                self.advance()
+                while self.i < len(self.text):
+                    if self.text[self.i] == '^' and self.i + 1 < len(self.text) and self.text[self.i + 1] == '^':
+                        self.advance()
+                        self.advance()
+                        break
+                    else:
+                        self.advance()
+                continue
 
-        # SINGLE SYMBOL
-        start_line = line
-        start_col = col
-        sym = text[i]
+            # строки и выскакивающие последовательности (\n, \t)
+            if self.text[self.i] == '"':
+                start_line = self.line
+                start_col = self.col
+                string_content = ""
+                self.advance()
 
-        if sym == '{' or sym == '[' or sym == '(':
-            bracket_depth += 1
-        elif sym == '}' or sym == ']' or sym == ')':
-            bracket_depth -= 1
+                while self.i < len(self.text):
+                    if self.text[self.i] == '\\':
+                        self.advance()
+                        if self.i >= len(self.text):
+                            self._syntax_error(self.text, start_line, start_col, "Unexpected end of string")
+                        escapes = {
+                            'n': '\n',
+                            't': '\t',
+                            'r': '\r',
+                            '\\': '\\',
+                            '"': '"',
+                            "'": "'",
+                            '0': '\0'
+                        }
+                        string_content += escapes.get(self.text[self.i], self.text[self.i])
+                        self.advance()
+                    elif self.text[self.i] == '"':
+                        self.advance()
+                        break
+                    else:
+                        string_content += self.text[self.i]
+                        self.advance()
 
-        sym_token_type = KEYWORDS.get(sym, "SYMBOL")
-        arr.append(Token(sym, sym_token_type, start_line, start_col))
-        advance()
+                self.arr.append(Token(f'"{string_content}"', "STRING", start_line, start_col, string_content))
+                continue
 
-    while len(indent_stack) > 1:
-        indent_stack.pop()
-        arr.append(Token("", "DEDENT", line, col))
+            # монострочный комментарий.
+            if self.text[self.i] == '/' and self.i + 1 < len(self.text) and self.text[self.i + 1] == '/':
+                while self.i < len(self.text) and self.text[self.i] != '\n':
+                    self.advance()
+                continue
 
-    if len(arr) == 0 or arr[-1].dtype != "NEWLINE":
-        arr.append(Token("\\n", "NEWLINE", line, col))
+            # новая строка.
+            if self.text[self.i] == "\n":
+                self.arr.append(Token("\\n", "NEWLINE", self.line, self.col))
+                self.advance()
+                at_line_start = True
+                continue
 
-    arr.append(Token("", "EOF", line, col))
+            if self.text[self.i] in " \t\r":
+                self.advance()
+                continue
 
-    return arr
+            # слова/идентификаторы.
+            if self.text[self.i].isalpha() or self.text[self.i] == "_":
+                start_line = self.line
+                start_col = self.col
+                word = ""
+                while self.i < len(self.text) and (self.text[self.i].isalnum() or self.text[self.i] == "_"):
+                    word += self.text[self.i]
+                    self.advance()
+                token_type = KEYWORDS.get(word, "ID")
+                self.arr.append(Token(word, token_type, start_line, start_col))
+                continue
+
+            # числа.
+            if self.text[self.i].isdigit() or (self.text[self.i] == '0' and self.i + 1 < len(self.text) and self.text[self.i + 1].lower() in 'xob'):
+                start_line = self.line
+                start_col = self.col
+                num_str = ""
+
+                if self.text[self.i] == '0' and self.i + 1 < len(self.text) and self.text[self.i + 1].lower() in 'xob':
+                    prefix = self.text[self.i] + self.text[self.i + 1].lower()
+                    num_str += prefix
+                    self.advance()
+                    self.advance()
+
+                    if prefix == '0x':
+                        while self.i < len(self.text) and (self.text[self.i].isdigit() or self.text[self.i].lower() in 'abcdef' or self.text[self.i] == '_'):
+                            if self.text[self.i] != '_':
+                                num_str += self.text[self.i]
+                            self.advance()
+                    elif prefix == '0o':
+                        while self.i < len(self.text) and (self.text[self.i] in '01234567' or self.text[self.i] == '_'):
+                            if self.text[self.i] != '_':
+                                num_str += self.text[self.i]
+                            self.advance()
+                    elif prefix == '0b':
+                        while self.i < len(self.text) and (self.text[self.i] in '01' or self.text[self.i] == '_'):
+                            if self.text[self.i] != '_':
+                                num_str += self.text[self.i]
+                            self.advance()
+
+                    self.arr.append(self.parse_number(num_str, start_line, start_col))
+                    continue
+
+                is_float = False
+
+                while self.i < len(self.text) and (self.text[self.i].isdigit() or self.text[self.i] == '_'):
+                    if self.text[self.i] != '_':
+                        num_str += self.text[self.i]
+                    self.advance()
+
+                if self.i < len(self.text) and self.text[self.i] == '.':
+                    num_str += '.'
+                    self.advance()
+                    is_float = True
+
+                    while self.i < len(self.text) and (self.text[self.i].isdigit() or self.text[self.i] == '_'):
+                        if self.text[self.i] != '_':
+                            num_str += self.text[self.i]
+                        self.advance()
+
+                if is_float:
+                    value = float(num_str)
+                    self.arr.append(Token(str(value), "FLOAT", start_line, start_col, value))
+                else:
+                    self.arr.append(Token(num_str, "NUMBER", start_line, start_col, int(num_str)))
+                continue
+
+            # двойные символы.
+            if self.i + 1 < len(self.text):
+                two = self.text[self.i] + self.text[self.i + 1]
+                if two == "==":
+                    self.arr.append(Token("==", "EQEQ", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "!=":
+                    self.arr.append(Token("!=", "NOTEQ", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "<=":
+                    self.arr.append(Token("<=", "LE", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == ">=":
+                    self.arr.append(Token(">=", "GE", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == ">>":
+                    self.arr.append(Token(">>", "SHR", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "<<":
+                    self.arr.append(Token("<<", "SHL", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "||":
+                    self.arr.append(Token("||", "OR", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "&&":
+                    self.arr.append(Token("&&", "AND", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "++":
+                    self.arr.append(Token("++", "INC", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "--":
+                    self.arr.append(Token("--", "DEC", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "+>":
+                    self.arr.append(Token("+>", "ARR_ADD", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "->":
+                    self.arr.append(Token("->", "ARROW", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "*>":
+                    self.arr.append(Token("*>", "ARR_MUL", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "::":
+                    self.arr.append(Token("::", "DOUBLECOL", self.line, self.col))
+                    self.advance(); self.advance(); continue
+                elif two == "\\\\":
+                    self.arr.append(Token("\\\\", "IDIV", self.line, self.col))
+                    self.advance(); self.advance(); continue
+
+            # SINGLE SYMBOL
+            start_line = self.line
+            start_col = self.col
+            sym = self.text[self.i]
+
+            if sym == '{' or sym == '[' or sym == '(':
+                bracket_depth += 1
+            elif sym == '}' or sym == ']' or sym == ')':
+                bracket_depth -= 1
+
+            sym_token_type = KEYWORDS.get(sym, "SYMBOL")
+            self.arr.append(Token(sym, sym_token_type, start_line, start_col))
+            self.advance()
+
+        while len(indent_stack) > 1:
+            indent_stack.pop()
+            self.arr.append(Token("", "DEDENT", self.line, self.col))
+
+        if len(self.arr) == 0 or self.arr[-1].dtype != "NEWLINE":
+            self.arr.append(Token("\\n", "NEWLINE", self.line, self.col))
+
+        self.arr.append(Token("", "EOF", self.line, self.col))
+
+        return
 
 
-def _syntax_error(text: str, line: int, col: int, msg: str):
-    lines = text.splitlines()
-    src = lines[line] if 0 <= line < len(lines) else ""
-    print(f"[L] ERROR [line {line}, col {col}]:")
-    print(f"  {msg}")
-    print(f"{line} | {src}")
-    print(f"  | {' ' * col}^")
-    sys.exit(1)
+    def _syntax_error(self, text: str, line: int, col: int, msg: str):
+        lines = self.text.splitlines()
+        src = lines[self.line] if 0 <= self.line < len(lines) else ""
+        print(f"[L] ERROR [self.line {self.line}, self.col {self.col}]:")
+        print(f"  {msg}")
+        print(f"{self.line} | {src}")
+        print(f"  | {' ' * self.col}^")
+        sys.exit(1)

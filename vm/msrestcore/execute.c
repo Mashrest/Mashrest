@@ -80,8 +80,6 @@ int msrest_execute(Program *prog)
         [0x1A] = &&OP_1A,
         [0x1B] = &&OP_1B,
         [0x1C] = &&OP_1C,
-        [0x1E] = &&OP_1E,
-        [0x1F] = &&OP_1F,
 
         [0x28] = &&OP_28,
         [0x29] = &&OP_29,
@@ -867,23 +865,53 @@ OP_17: {
     #if _PROFILE
     PROF_START(); // NOT EQUAL
     #endif
-        
+
     Value b = LPOP();
     Value a = LPOP();
     Value result;
-    if(a.type == MSREST_NULL && b.type == MSREST_NULL) 
-        result = bool_to_value(0);
 
-    else if(a.type == MSREST_NULL || b.type == MSREST_NULL)
+    if (a.type != b.type) {
         result = bool_to_value(1);
+    }
+    else {
+        switch (a.type) {
+            case MSREST_NULL:
+                result = bool_to_value(0);
+                break;
 
-    else if(IS_NUMBER(a) && IS_NUMBER(b))
-        result = bool_to_value(value_to_double(a) != value_to_double(b));
-    
-    else{
-        const char* imm1 = type_name(a.type);
-        const char* imm2 = type_name(b.type);
-        msrest_panic("Type error: 'not equal' got unsupported type %s and %s\n", imm1, imm2);
+            case MSREST_BOOL:
+                result = bool_to_value(a.integer != b.integer);
+                break;
+
+            case MSREST_INT:
+                result = bool_to_value(a.integer != b.integer);
+                break;
+
+            case MSREST_FLOAT:
+                result = bool_to_value(a.floating != b.floating);
+                break;
+
+            case MSREST_STRING: {
+                if (a.string == b.string) {
+                    result = bool_to_value(0);
+                    break;
+                }
+                // разная длина - точно не равны
+                if (a.string->length != b.string->length) {
+                    result = bool_to_value(1);
+                    break;
+                }
+                // побайтовое сравнение, инвертируем
+                result = bool_to_value(!string_equal(a.string, b.string));
+                break;
+            }
+
+            default: {
+                const char* imm1 = type_name(a.type);
+                const char* imm2 = type_name(b.type);
+                msrest_panic("Type error: 'not equal' got unsupported type %s and %s\n", imm1, imm2);
+            }
+        }
     }
 
     LPUSH(result);
@@ -895,7 +923,6 @@ OP_17: {
     FETCH();
     NEXT();
 }
-
 
 OP_18: {
     #if _PROFILE
@@ -1017,62 +1044,6 @@ OP_1C: {
         msrest_panic("Type error: 'NOT' expected BOOL type, got %s\n", type_name(v.type));
     Value result = bool_to_value(!value_to_bool(v));
     LPUSH(result);
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
-}
-
-
-OP_1E: {
-    #if _PROFILE
-    PROF_START(); // AND
-    #endif
-
-    Value b = LPOP();
-    Value a = LPOP();
-    Value result;
-
-    if (IS_NULL(a) || IS_NULL(b)) 
-        result = null_to_value();
-
-    else if (__builtin_expect(a.type != MSREST_BOOL || b.type != MSREST_BOOL, 0)) {
-        const char* imm1 = type_name(a.type);
-        const char* imm2 = type_name(b.type);
-        msrest_panic("Type error: logic 'or' expected BOOL and BOOL types, got %s and %s\n", imm1, imm2);
-    }
-    else result = bool_to_value(value_to_bool(a) && value_to_bool(b));
-
-    LPUSH(result);
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-    FETCH();
-    NEXT();
-}
-
-
-OP_1F: {
-    #if _PROFILE
-    PROF_START(); // OR
-    #endif
-
-    Value b = LPOP();
-    Value a = LPOP();
-
-    if (IS_NULL(a) || IS_NULL(b)) 
-        LPUSH(null_to_value());
-    else if (__builtin_expect(a.type != MSREST_BOOL || b.type != MSREST_BOOL, 0)) {      
-        const char* imm1 = type_name(a.type);
-        const char* imm2 = type_name(b.type);
-        msrest_panic("Type error: logic 'or' expected BOOL and BOOL types, got %s and %s\n", imm1, imm2);
-    }
-    else 
-    LPUSH(bool_to_value(a.logic || b.logic));
 
     #if _PROFILE
     PROF_END();

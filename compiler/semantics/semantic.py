@@ -12,6 +12,7 @@ class SemanticAnalysis(SemanticBase):
             "VAR": self.check_vardeclaration,
             "CONST": self.check_constdeclaration,
             "GLOBAL": self.check_global,
+            "MUT": self.check_mut,
 
             "NUMBER": self.check_number,
             "FLOAT": self.check_number,
@@ -702,7 +703,7 @@ class SemanticAnalysis(SemanticBase):
         idx_t = self.get_operand_type(node["index"])
 
         # индексируемо ли вообще?
-        if "ANY" not in arr_t and not (arr_t & (ARRAY_TYPES | {"DICT"})):
+        if "ANY" not in arr_t and not (arr_t & (ARRAY_TYPES | {"DICT", "STRING"})):
             self.error(f"Cannot index {self._format_type(arr_t)}", node["array"])
             return
 
@@ -1345,6 +1346,55 @@ class SemanticAnalysis(SemanticBase):
             global_info["usage"] = global_info.get("usage", 0) + 1
             global_info["error_data"]["last_used_at"] = node
 
+
+    def check_mut(self, node):
+        args = node.get("args", [])
+        for arg in args:
+            if arg.get("type") != "ID":
+                self.error(f"MUT expects an identifier, got {arg.get('type')}", arg)
+                continue
+
+            var_name = arg.get("value")
+            global_scope = self.get_global_scope()
+            if global_scope is None:
+                self.error("No global scope found", node)
+                return
+            if var_name not in global_scope.variables:
+                self.error(f"Global variable '{var_name}' is not declared", arg)
+                continue
+
+            global_info = global_scope.variables[var_name]
+
+            func_scope = self.current_scope().current_function_scope()
+            if func_scope is None:
+                self.error(f"MUT can only be used inside a function", node)
+                continue
+
+            if not func_scope.has(var_name):
+                global_alias = global_info.get("node", {}).get("alias")
+                func_scope.variables[var_name] = {
+                    "type": global_info.get("type", {"ANY"}),
+                    "node": arg,
+                    "usage": 0,
+                    "readonly": False,
+                    # ключевое отличие от GLOBAL: разрешаем запись
+                    "is_global_ref": False,
+                    "is_mut_ref": True,
+                    "global_ref": global_info,
+                    "error_data": {
+                        "last_assigned_at": None,
+                        "last_used_at": None,
+                        "modified_at": []
+                    }
+                }
+                if global_alias:
+                    func_scope.variables[var_name]["alias"] = global_alias
+                    arg["alias"] = global_alias
+
+            global_info["usage"] = global_info.get("usage", 0) + 1
+            global_info["error_data"]["last_used_at"] = node
+
+        
 
     def check_expr_call(self, node):
         callee = node["callee"]

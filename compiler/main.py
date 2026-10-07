@@ -1,4 +1,4 @@
-from .lekser import lekse
+from .lekser import Lekser
 from .parser import Parser, print_tree
 from .ast_preprocessor import preprocess_ast
 from .semantics.semantic import SemanticAnalysis
@@ -11,8 +11,8 @@ import json
 import os
 
 
-DEBUG = True
-DIS = True
+DEBUG = False
+DIS = False
 
 
 """COLORS = {
@@ -39,7 +39,9 @@ COLORS = {
 
 
 def parse_and_preprocess(source):
-    tokens = lekse(source)
+    lex = Lekser(source)
+    lex.lekse()
+    tokens = lex.arr
 
     if DEBUG:
         print(tokens)
