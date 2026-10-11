@@ -11,6 +11,7 @@ import json
 import os
 
 
+AST = False
 DEBUG = False
 DIS = False
 
@@ -196,7 +197,7 @@ def processing(source, input_file, output_file="output.orb"):
 
         # AST изменен внутри анализатора.
         modified_ast = analyzer.ast
-        if DEBUG:
+        if AST:
             print("=== MODIFIED AST ===")
             print(modified_ast)
 

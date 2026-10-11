@@ -30,8 +30,8 @@ EXPORT Value readf(MsrestAPI *api, Value *args, int argc)
     api->check_argc(argc, 1);
     api->check_type(MSREST_STRING, args[0].type);
 
-    FILE *f = fopen(api->string_data(args[0]), "r");
-    if (!f) return api->bool_to_value(0);
+    FILE *f = fopen(api->string_data(args[0]), "rb");
+    if (!f) api->msrest_panic("[FILE] read(): Cannot find file");
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -44,13 +44,13 @@ EXPORT Value readf(MsrestAPI *api, Value *args, int argc)
 
     if (size > MAX_READFILE_SIZE) {
     fclose(f);
-    api->msrest_panic("[FILE] readfile(): file too large for readfile\n");
+    api->msrest_panic("[FILE] read(): file too large for readfile");
 }
 
     if (read != (size_t)size) {
         fclose(f);
         free(buffer);
-        return api->bool_to_value(0);
+        api->msrest_panic("[FILE] read(): cannot open this file, read %d bytes, file size %d bytes", read, size);
     }
 
     fclose(f);

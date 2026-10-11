@@ -6,6 +6,8 @@
 #include <direct.h>
 #include <ctype.h>
 #include <string.h>
+#include <errno.h>
+#include <stdlib.h>
 
 
 static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
@@ -19,26 +21,33 @@ static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got,
 
 // UTF-8 утилиты.
 
+// принимает сырые байты, декодирует в нормальное число.
 static uint32_t utf8_decode(const uint8_t* data) {
     uint8_t c = data[0];
+    // если <128, то ASCII, просто скип и возврат.
     if (c < 0x80) return c;
+    // если первый байт начинается на 110, значит лидер двухбайтового.
     if ((c & 0xE0) == 0xC0) {
         if ((data[1] & 0xC0) != 0x80) return 0xFFFD;
         return ((c & 0x1F) << 6) | (data[1] & 0x3F);
     }
+    // 1110 - 3 байта.
     if ((c & 0xF0) == 0xE0) {
         if ((data[1] & 0xC0) != 0x80 || (data[2] & 0xC0) != 0x80) return 0xFFFD;
         return ((c & 0x0F) << 12) | ((data[1] & 0x3F) << 6) | (data[2] & 0x3F);
     }
+    // 4 байта.
     if ((c & 0xF8) == 0xF0) {
         if ((data[1] & 0xC0) != 0x80 || (data[2] & 0xC0) != 0x80 || (data[3] & 0xC0) != 0x80)
             return 0xFFFD;
         return ((c & 0x07) << 18) | ((data[1] & 0x3F) << 12) |
                ((data[2] & 0x3F) << 6) | (data[3] & 0x3F);
     }
+    // битый юникод, как по стандарту.
     return 0xFFFD;
 }
 
+// просто считает длину руны по байту.
 static inline size_t utf8_char_bytes(const char* str, size_t pos) {
     uint8_t c = (uint8_t)str[pos];
     if ((c & 0x80) == 0) return 1;
@@ -48,6 +57,15 @@ static inline size_t utf8_char_bytes(const char* str, size_t pos) {
     return 1;
 }
 
+
+/*
+0xxxxxxx - лидер однобайтового символа (ASCII)
+110xxxxx -лидер 2-байтового
+1110xxxx - лидер 3-байтового
+11110xxx - лидер 4-байтового
+10xxxxxx - байт-продолжение.
+*/
+// кодируем в буфер, аппендим.
 static size_t utf8_encode(char* buf, uint32_t cp) {
     if (cp < 0x80) {
         buf[0] = (char)cp;
@@ -71,22 +89,26 @@ static size_t utf8_encode(char* buf, uint32_t cp) {
     return 4;
 }
 
+// принимает количество символов, которое нужно декодировать, указатель на первый байт строки.
 static uint32_t* decode_to_codepoints(const char* str, size_t char_len, size_t* out_byte_len) {
     uint32_t* cp = malloc(char_len * sizeof(uint32_t));
     if (!cp) return NULL;
     
     size_t byte_pos = 0;
-    for (size_t i = 0; i < char_len; i++) {
+    for (int64_t i = 0; i < char_len; i++) {
         cp[i] = utf8_decode((uint8_t*)str + byte_pos);
         byte_pos += utf8_char_bytes(str, byte_pos);
     }
+    // может быть NULL. О
     if (out_byte_len) *out_byte_len = byte_pos;
     return cp;
 }
 
 static char* encode_codepoints(const uint32_t* cp, size_t char_len, size_t* out_byte_len) {
+    char_len = (int64_t)char_len;
+    
     size_t total = 0;
-    for (size_t i = 0; i < char_len; i++) {
+    for (int64_t i = 0; i < char_len; i++) {
         if (cp[i] < 0x80) total += 1;
         else if (cp[i] < 0x800) total += 2;
         else if (cp[i] < 0x10000) total += 3;
@@ -97,7 +119,7 @@ static char* encode_codepoints(const uint32_t* cp, size_t char_len, size_t* out_
     if (!buf) return NULL;
     
     size_t pos = 0;
-    for (size_t i = 0; i < char_len; i++) {
+    for (int64_t i = 0; i < char_len; i++) {
         pos += utf8_encode(buf + pos, cp[i]);
     }
     buf[pos] = '\0';
@@ -206,7 +228,7 @@ static int is_hex_char(uint32_t cp) {
     return 0;
 }
 
-// EXPORT функции.
+
 
 /* вспомогательные функции для управления буфером. */
 
@@ -248,6 +270,34 @@ static inline int is_ascii_space(uint8_t c) {
 
 
 
+
+// эскейп-анэсейкп функции-саппорты.
+
+static int hex_val(uint8_t c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+static void append_bytes(MsrestAPI *api, char **buf, size_t *cap, size_t *len,
+                         const char *src, size_t n) {
+    ensure_capacity(api, buf, cap, *len + n);
+    memcpy(*buf + *len, src, n);
+    *len += n;
+}
+
+static void append_cp(MsrestAPI *api, char **buf, size_t *cap, size_t *len,
+                      uint32_t cp) {
+    char tmp[4];
+    size_t n = utf8_encode(tmp, cp);
+    append_bytes(api, buf, cap, len, tmp, n);
+}
+
+
+
+
+// EXPORT функции.
 
 
 EXPORT Value length(MsrestAPI* api, Value* args, int argc) {
@@ -652,6 +702,106 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
     return result_val;
 }
 
+
+EXPORT Value hex_to_decimal(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "hex_to_decimal");
+
+    const char *start_hex = api->string_data(args[0]);
+    uint32_t string_len = api->string_bytes(args[0]);
+
+    if (string_len == 0 || string_len > 16) {
+        api->msrest_panic("[STRINGS] hex_to_decimal(): string must be 1..16 hex chars, got %d", string_len);
+    }
+
+    for (uint32_t i = 0; i < string_len; i++) {
+        if (!isxdigit((unsigned char)start_hex[i])) {
+            api->msrest_panic("[STRINGS] hex_to_decimal(): cannot convert non-hex number to decimal");
+        }
+    }
+
+    errno = 0;
+    unsigned long long u = strtoull(start_hex, NULL, 16);
+    if (errno == ERANGE) {
+        api->msrest_panic("[STRINGS] hex_to_decimal(): overflow");
+    }
+
+    if (u > (unsigned long long)INT64_MAX) {
+        api->msrest_panic("[STRINGS] hex_to_decimal(): value exceeds int64 max");
+    }
+
+    return api->int_to_value((int64_t)u);
+}
+
+
+
+EXPORT Value oct_to_decimal(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "oct_to_decimal");
+
+    const char *start_oct = api->string_data(args[0]);
+    uint32_t string_len = api->string_bytes(args[0]);
+
+    if (string_len == 0 || string_len > 21) {
+        api->msrest_panic("[STRINGS] oct_to_decimal(): string must be 1..21 oct chars, got %d", string_len);
+    }
+
+    for (uint32_t i = 0; i < string_len; i++) {
+        if (start_oct[i] < '0' || start_oct[i] > '7') {
+            api->msrest_panic("[STRINGS] oct_to_decimal(): cannot convert non-octal number to decimal");
+        }
+    }
+
+    errno = 0;
+    unsigned long long u = strtoull(start_oct, NULL, 8);
+    if (errno == ERANGE) {
+        api->msrest_panic("[STRINGS] oct_to_decimal(): overflow");
+    }
+
+    if (u > (unsigned long long)INT64_MAX) {
+        api->msrest_panic("[STRINGS] oct_to_decimal(): value exceeds int64 max");
+    }
+
+    return api->int_to_value((int64_t)u);
+}
+
+
+EXPORT Value bin_to_decimal(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "bin_to_decimal");
+
+    const char *start_oct = api->string_data(args[0]);
+    uint32_t string_len = api->string_bytes(args[0]);
+
+    if (string_len == 0 || string_len > 63) {
+        api->msrest_panic("[STRINGS] bin_to_decimal(): string must be 1..63 bin chars, got %d", string_len);
+    }
+
+    for (uint32_t i = 0; i < string_len; i++) {
+        if (start_oct[i] != '0' || start_oct[i] != '1') {
+            api->msrest_panic("[STRINGS] bin_to_decimal(): cannot convert non-bin number to decimal");
+        }
+    }
+
+    errno = 0;
+    unsigned long long u = strtoull(start_oct, NULL, 8);
+    if (errno == ERANGE) {
+        api->msrest_panic("[STRINGS] bin_to_decimal(): overflow");
+    }
+
+    if (u > (unsigned long long)INT64_MAX) {
+        api->msrest_panic("[STRINGS] bin_to_decimal(): value exceeds int64 max");
+    }
+
+    return api->int_to_value((int64_t)u);
+}
+
+
+
+
 EXPORT Value join(MsrestAPI* api, Value* args, int argc) 
 {
     api->check_argc(argc, 2);
@@ -736,5 +886,274 @@ EXPORT Value split(MsrestAPI* api, Value* args, int argc)
         cursor = found + sep_len;
     }
 
+    return out;
+}
+
+
+EXPORT Value escape(MsrestAPI* api, Value* args, int argc) {
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "escape");
+
+
+    const char *str = api->string_data(args[0]);
+    size_t byte_len = api->string_bytes(args[0]);
+
+    if (byte_len == 0) return api->string_new_len("", 0);
+
+    // худший случай: каждый байт → "\xHH" (4 байта). обычно сильно меньше.
+    size_t cap = byte_len + 1;
+    size_t len = 0;
+    char *out = safe_malloc(api, cap);
+
+    #define ESCAPE_CASE(ch, str) \
+        case ch: append_bytes(api, &out, &cap, &len, str, 2)
+
+    size_t i = 0;
+    while (i < byte_len) {
+        uint8_t c = (uint8_t)str[i];
+
+        switch (c) {
+            ESCAPE_CASE('\n', "\\n"); i++; continue;
+            ESCAPE_CASE('\t', "\\t"); i++; continue;
+            ESCAPE_CASE('\r', "\\r"); i++; continue;
+            ESCAPE_CASE('\a', "\\a"); i++; continue;
+            ESCAPE_CASE('\b', "\\b"); i++; continue;
+            ESCAPE_CASE('\f', "\\f"); i++; continue;
+            ESCAPE_CASE('\v', "\\v"); i++; continue;
+            ESCAPE_CASE('\0', "\\0"); i++; continue;
+            ESCAPE_CASE('\\', "\\\\"); i++; continue;
+            ESCAPE_CASE('"',  "\\\""); i++; continue;
+        }
+
+        if (c < 0x20 || c == 0x7F) {
+            char tmp[5];
+            snprintf(tmp, sizeof(tmp), "\\x%02x", c);
+            append_bytes(api, &out, &cap, &len, tmp, 4);
+            i++;
+            continue;
+        }
+
+        // всё остальное (включая UTF-8 и лидирующие байты) - как есть
+        append_bytes(api, &out, &cap, &len, str + i, 1);
+        i++;
+    }
+
+    #undef ESCAPE_CASE
+
+    Value v = api->string_new_len(out, len);
+    free(out);
+    return v;
+}
+
+
+EXPORT Value unescape(MsrestAPI* api, Value* args, int argc) {
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "unescape");
+
+    const char *str = api->string_data(args[0]);
+    size_t byte_len = api->string_bytes(args[0]);
+
+    if (byte_len == 0) return api->string_new_len("", 0);
+
+    size_t cap = byte_len;
+    size_t len = 0;
+    char *out = safe_malloc(api, cap);
+
+    for (size_t i = 0; i < byte_len; ) {
+        uint8_t c = (uint8_t)str[i];
+
+        if (c != '\\') {
+            append_bytes(api, &out, &cap, &len, str + i, 1);
+            i++;
+            continue;
+        }
+
+        // c == '\\'
+        if (i + 1 >= byte_len) {
+            // висячий backslash оставляем как есть.
+            append_bytes(api, &out, &cap, &len, str + i, 1);
+            i++;
+            continue;
+        }
+
+        #define BACK_ESCAPE(ch, strval) \
+            case ch: append_bytes(api, &out, &cap, &len, strval, 1)
+
+        uint8_t e = (uint8_t)str[i + 1];
+        switch (e) {
+
+            // логика предельно проста: берем простой текст,
+            // (\n как 2 символа и транслируем в экранированный ссоответственный).
+            BACK_ESCAPE('n', "\n"); i += 2; continue;
+            BACK_ESCAPE('t', "\t"); i += 2; continue;
+            BACK_ESCAPE('r', "\r"); i += 2; continue;
+            BACK_ESCAPE('a', "\a"); i += 2; continue;
+            BACK_ESCAPE('b', "\b"); i += 2; continue;
+            BACK_ESCAPE('f', "\f"); i += 2; continue;
+            BACK_ESCAPE('v', "\v"); i += 2; continue;
+            BACK_ESCAPE('0', "\0"); i += 2; continue;
+            BACK_ESCAPE('\\', "\\"); i += 2; continue;
+            BACK_ESCAPE('"', "\""); i += 2; continue;
+            BACK_ESCAPE('\'', "'"); i += 2; continue;
+
+            case 'x': {
+                // нужно ровно 2 hex.
+                // здесь просто смотрим на эскейп, \xF3 например
+                if (i + 3 >= byte_len) goto unknown;
+                int h1 = hex_val((uint8_t)str[i + 2]);
+                int h2 = hex_val((uint8_t)str[i + 3]);
+                if (h1 < 0 || h2 < 0) goto unknown;
+
+                char b = (char)((h1 << 4) | h2);
+                append_bytes(api, &out, &cap, &len, &b, 1);
+                i += 4;
+                continue;
+            }
+
+            case 'u': {
+                // ровно 4 hex.
+                // \u37DA типа.
+                if (i + 5 >= byte_len) goto unknown;
+                uint32_t cp = 0;
+                for (uint8_t k = 0; k < 4; k++) {
+                    int h = hex_val((uint8_t)str[i + 2 + k]);
+                    if (h < 0) goto unknown;
+                    cp = (cp << 4) | (uint32_t)h;
+                }
+                append_cp(api, &out, &cap, &len, cp);
+                i += 6;
+                continue;
+            }
+
+            case 'U': {
+                // ровно 8 hex, \U1234567C.
+                if (i + 9 >= byte_len) goto unknown;
+                uint32_t cp = 0;
+                for (uint8_t k = 0; k < 8; k++) {
+                    int h = hex_val((uint8_t)str[i + 2 + k]);
+                    if (h < 0) goto unknown;
+                    cp = (cp << 4) | (uint32_t)h;
+                }
+                if (cp > 0x10FFFF) goto unknown;
+                append_cp(api, &out, &cap, &len, cp);
+                i += 10;
+                continue;
+            }
+
+            default:
+            unknown:
+                // неизвестный или невалидный escape оставляем как есть.
+                append_bytes(api, &out, &cap, &len, str + i, 1); // '\'.
+                append_bytes(api, &out, &cap, &len, str + i + 1, 1); // буква.
+                i += 2;
+                continue;
+        }
+    }
+
+    #undef ESCAPE_CASE
+
+    Value v = api->string_new_len(out, len);
+    free(out);
+    return v;
+}
+
+
+
+
+EXPORT Value replace_all(MsrestAPI* api, Value* args, int argc) {
+    api->check_argc(argc, 3);
+    lib_check_type(api, MSREST_STRING, args[0].type, "replace_all");
+    lib_check_type(api, MSREST_STRING, args[1].type, "replace_all");
+    lib_check_type(api, MSREST_STRING, args[2].type, "replace_all");
+
+    const char *mainstr_start = api->string_data(args[0]);
+    const char *replace = api->string_data(args[1]);
+    const char *to_what = api->string_data(args[2]);
+
+    uint32_t mainstr_len = api->string_bytes(args[0]);
+    uint32_t repl_len = api->string_bytes(args[1]);
+    uint32_t towh_len = api->string_bytes(args[2]);
+
+    if (mainstr_len == 0) return api->string_new_len("", 0);
+    if (repl_len == 0) return args[0];
+
+    uint32_t expected_len = 0;
+    int64_t i = 0;
+
+    while (i < mainstr_len) {
+        if ((mainstr_start[i] == replace[0]) && (repl_len + i <= mainstr_len)) {
+            if (!memcmp(mainstr_start + i, replace, (size_t)repl_len)) {
+                expected_len += towh_len;
+                i += repl_len;
+            }
+            else {
+                expected_len += 1;
+                i++;
+            }
+        }
+        else {
+            expected_len += 1;
+            i++;
+        }
+    }
+
+    char *buf = safe_malloc(api, (size_t)expected_len);
+    int64_t c = 0;
+    int64_t w = 0;
+
+    while (c < mainstr_len) {
+        if ((mainstr_start[c] == replace[0]) && (repl_len + c <= mainstr_len)) {
+            if (!memcmp(mainstr_start + c, replace, (size_t)repl_len)) {
+                memcpy(buf + w, to_what, towh_len);
+                c += repl_len;
+                w += towh_len;
+            }
+            else {
+                buf[w] = mainstr_start[c];
+                w++;
+                c++;
+            }
+        }
+        else {
+            buf[w] = mainstr_start[c];
+            w++;
+            c++;
+        }
+    }
+
+    Value out = api->string_new_len(buf, (size_t)expected_len);
+    free(buf);
+    return out;
+}
+
+
+
+EXPORT Value reverse(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 1);
+    lib_check_type(api, MSREST_STRING, args[0].type, "reverse");
+
+    const char *text = api->string_data(args[0]);
+    uint32_t text_len = api->string_bytes(args[0]);
+
+    if (text_len == 0) return api->string_new_len("", 0);
+
+    char *writer = safe_malloc(api, text_len);
+    char *writer_end = writer + text_len;
+    int64_t i = 0;
+
+    // идем по массиву байт, получаем размер руны.
+    while (i < text_len) {
+        // n байт - размер руны.
+        uint8_t cursize = (uint8_t)utf8_char_bytes(text, i);
+        // двигаем руну. я с конца точки приема отступаю на n байт, и двигаю туда n байт.
+        memmove(writer_end - cursize, (text + i), cursize);
+        // это симметричный процесс.
+        i += cursize;
+        writer_end -= cursize;
+    }
+
+    Value out = api->string_new_len(writer, text_len);
+    free(writer);
     return out;
 }

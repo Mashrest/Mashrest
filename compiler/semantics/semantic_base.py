@@ -28,7 +28,7 @@ INTERNAL = {
  "FNREF": ["FNREF"],
 }
 
-"""
+
 RED = "\033[91m"
 YELLOW = "\033[93m"
 RESET = "\033[0m"
@@ -36,8 +36,9 @@ CYAN = "\033[96m"
 GREEN = "\033[92m"
 ORANGE = "\033[38;5;208m" 
 VIOLET = "\033[95m"
-"""
 
+
+"""
 RED = ""
 YELLOW = ""
 RESET = ""
@@ -45,7 +46,7 @@ CYAN = ""
 GREEN = ""
 ORANGE = "" 
 VIOLET = ""
-
+"""
 
 
 class SemanticBase:
@@ -292,7 +293,7 @@ class SemanticBase:
     def _format_type(self, type_set):
         if not type_set:
             return "UNKNOWN"
-        return ", ".join(sorted(type_set))
+        return "/".join(sorted(type_set))
 
 
     def _primary_type(self, type_set):

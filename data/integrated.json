@@ -97,7 +97,7 @@
     "float": {
       "metadata": {      
         "group": "converter",
-        "internal_name": "1"
+        "internal_name": "2"
       },
       "description": {
         "ru": "Конвертирует значение в число с плавающей точкой.",
@@ -155,7 +155,7 @@
     "str": {
       "metadata": {      
         "group": "converter",
-        "internal_name": "3"
+        "internal_name": "4"
       },
       "description": {
         "ru": "Конвертирует значение в строку.",
@@ -175,7 +175,7 @@
     "bool": {
       "metadata": {      
         "group": "converter",
-        "internal_name": "4"
+        "internal_name": "3"
       },
       "description": {
         "ru": "Конвертирует значение в логический тип.",

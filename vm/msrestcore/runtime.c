@@ -973,6 +973,23 @@ Value array_pop(Value v)
 }
 
 
+
+static char* value_to_qstring(Value v)
+{
+    if (v.type == MSREST_STRING) {
+        const char *raw = v.string->data;
+        size_t raw_len = strlen(raw);
+        char *quoted = safe_malloc(raw_len + 3);
+        quoted[0] = '\'';
+        memcpy(quoted + 1, raw, raw_len);
+        quoted[raw_len + 1] = '\'';
+        quoted[raw_len + 2] = '\0';
+        return quoted;
+    }
+    return value_to_string(v);
+}
+
+
 char* value_to_string(Value v) {
     
     static void* visited[256];
@@ -1159,20 +1176,7 @@ char* array_to_string(Array* arr)
     // конвертируем все элементы и считаем общую длину.
     for (int i = 0; i < arr->size; i++) {
         Value elem = arr->values[i];
-        
-        // строки (и ключи словаря) оборачиваем в кавычки
-        if (elem.type == MSREST_STRING) {
-            const char *raw = elem.string->data;
-            size_t raw_len = strlen(raw);
-            char *quoted = safe_malloc(raw_len + 3); // ' + raw + ' + \0
-            quoted[0] = '\'';
-            memcpy(quoted + 1, raw, raw_len);
-            quoted[raw_len + 1] = '\'';
-            quoted[raw_len + 2] = '\0';
-            elem_strings[i] = quoted;
-        } else {
-            elem_strings[i] = value_to_string(elem);
-        }
+        elem_strings[i] = value_to_qstring(elem);
         
         if (!elem_strings[i]) {
             for (int j = 0; j < i; j++) free(elem_strings[j]);
@@ -1498,13 +1502,24 @@ char* dict_to_string(Dict *d) {
     int idx = 0;
     for (uint32_t i = 0; i < d->capacity; i++) {
         DictEntry *entry = d->buckets[i];
-        while (entry) {
-            key_strings[idx] = value_to_string(string_to_value(entry->key->data));
-            value_strings[idx] = value_to_string(entry->value);
-            total_len += strlen(key_strings[idx]) + strlen(value_strings[idx]) + 4; // ": " + ", ".
-            idx++;
-            entry = entry->next;
-        }
+            while (entry) {
+                // ключ всегда строка, то есть оборачиваем вручную.
+                const char *raw = entry->key->data;
+                size_t raw_len = strlen(raw);
+                char *quoted = safe_malloc(raw_len + 3);
+                quoted[0] = '\'';
+                memcpy(quoted + 1, raw, raw_len);
+                quoted[raw_len + 1] = '\'';
+                quoted[raw_len + 2] = '\0';
+                key_strings[idx] = quoted;
+                
+                // значение через хелпер (строки тоже в кавычках).
+                value_strings[idx] = value_to_qstring(entry->value);
+                
+                total_len += strlen(key_strings[idx]) + strlen(value_strings[idx]) + 4;
+                idx++;
+                entry = entry->next;
+            }
     }
     
     char *result = safe_malloc(total_len + 1);

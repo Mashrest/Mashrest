@@ -397,7 +397,7 @@ EXPORT Value reverse(MsrestAPI *api, Value *args, int argc) {
     
     StringBuilderData *sb = require_stringbuilder(api, args[0]);
     
-    if (sb->chars <= 1) return args[0];  // 0 или 1 символ — ничего не делаем.
+    if (sb->chars <= 1) return args[0];  // 0 или 1 символ - ничего не делаем.
     
     // выделяем временный буфер для перевернутой строки.
     char *new_buffer = malloc(sb->bytes + 1);
@@ -466,7 +466,7 @@ EXPORT Value substring(MsrestAPI *api, Value *args, int argc) {
     }
     size_t start_char = (size_t)start_int;
     
-    intptr_t end_int = (intptr_t)sb->chars;   // дефолт — до конца
+    intptr_t end_int = (intptr_t)sb->chars;   // дефолт - до конца
     if (argc == 3) {
         end_int = api->value_to_int(args[2]);
     }

@@ -2351,8 +2351,9 @@ static Value invoke_static_float(Value v)
 static Value invoke_static_str(Value v)
 {
     if (v.type == MSREST_STRING) return v;
-
+    fprintf(stderr, "[DEBUG] value_to_string: type=%d\n", v.type);
     char *s = value_to_string(v);
+    
     Value result = string_to_value(s);
     free(s);
     return result;

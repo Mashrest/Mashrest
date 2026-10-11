@@ -1,8 +1,18 @@
 import json
 import os
 from pathlib import Path
+import copy
 
 
+
+_COMPOUND_TO_BINOP = {
+    "PLUS-EQ":    "PLUS",
+    "MINUS-EQ":   "MINUS",
+    "MUL-EQ":     "STAR",
+    "DIV-EQ":     "SLASH",
+    "IDIV-EQ":    "IDIV",
+    "PERCENT-EQ": "PERCENT",
+}
 
 _errors = []
 
@@ -95,9 +105,75 @@ def _expand_pipe(left, right):
     return new_dc
 
 
+def _expand_compound_assign(left, right, node):
+    op_dtype = node.get('op')
+    binop = _COMPOUND_TO_BINOP.get(op_dtype)
+    
+    if binop is None:
+        line = node.get('line', '?')
+        col = node.get('col', '?')
+        add_error(
+            f"[R] ERROR [line {line} col {col}]\n"
+            f"Unknown compound assign operator: {op_dtype}")
+        return node
+    
+    line = node.get('line', 0)
+    col = node.get('col', 0)
+    
+    # бинарный узел: left OP right.
+    binop_node = {
+        "type": binop,
+        "left": copy.deepcopy(left),
+        "right": right,
+        "line": line,
+        "col": col,
+    }
+    
+    # определяем тип присваивания по типу левой части.
+    left_type = left.get('type') if isinstance(left, dict) else None
+    if left_type == "ID":
+        assign_type = "ASSIGN"
+    elif left_type == "FIELD":
+        assign_type = "SET_FIELD"
+    elif left_type == "INDEX":
+        assign_type = "SET_INDEX"
+    else:
+        add_error(
+            f"[R] ERROR [line {line} col {col}]\n"
+            f"Left side of compound assignment is not assignable")
+        return node
+    
+    return {
+        "type": assign_type,
+        "left": left,
+        "right": binop_node,
+        "line": line,
+        "col": col,
+        "end_col": node.get('end_col', col),
+    }
+
+
+def transform_compound_assign(ast):
+    if isinstance(ast, dict):
+        if ast.get('type') == 'COMPOUND_ASSIGN':
+            left = transform_compound_assign(ast['left'])
+            right = transform_compound_assign(ast['right'])
+            return _expand_compound_assign(left, right, ast)
+        
+        for key, value in ast.items():
+            ast[key] = transform_compound_assign(value)
+        return ast
+    
+    if isinstance(ast, list):
+        return [transform_compound_assign(item) for item in ast]
+    
+    return ast
+
+
 def preprocess_ast(ast, modules=None, module_paths=None):
     clear_errors()
     if modules is None:
         modules = load_modules(module_paths)
+    ast = transform_compound_assign(ast)
     ast = transform_pipes(ast)
     return ast, get_errors()

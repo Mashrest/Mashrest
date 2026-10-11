@@ -470,7 +470,7 @@ class SemanticAnalysis(SemanticBase):
                 return
             
             if info.get("readonly", False):
-                self.error(f"Constant '{name}' cannot be assigned", left)
+                self.error(f"The constant '{name}' cannot be reassigned", left)
                 return
             
             if "alias" not in left:
@@ -554,9 +554,21 @@ class SemanticAnalysis(SemanticBase):
             return
 
         if not (lt.issubset({"NUMBER", "FLOAT"})):
-            self.error(f"Cannot use {node["type"]}, when left operand is {lt}", node_l, node_l)
+            note_node, note_kind = self._get_note_for_id(node_l)
+            self.error(
+                f"Cannot use {node['type']}, when left operand is {self._format_type(lt)} (expected INTEGER or FLOAT)",
+                node_l,
+                note_node=note_node,
+                note_kind=note_kind
+            )
         if not (rt.issubset({"NUMBER", "FLOAT"})):
-            self.error(f"Cannot use {node["type"]}, when right operand is {rt}", node_r, node_r)
+            note_node, note_kind = self._get_note_for_id(node_r)
+            self.error(
+                f"Cannot use {node['type']}, when right operand is {self._format_type(rt)} (expected INTEGER or FLOAT)",
+                node_r,
+                note_node=note_node,
+                note_kind=note_kind
+            )
 
 
     def check_comparison(self, node):
@@ -597,7 +609,7 @@ class SemanticAnalysis(SemanticBase):
                     node["right"])
                 return
 
-            # merge-тип: есть и good, и bad — не можем статически гарантировать.
+            # merge-тип: есть и good, и bad - не можем статически гарантировать.
             if lt_bad or rt_bad:
                 self.warn(
                     f"Pointer equality on merged type "
@@ -1488,7 +1500,7 @@ class SemanticAnalysis(SemanticBase):
             "readonly": False,
             "scope_name": self.current_scope().name,
             "error_data": {
-                "last_assigned_at": None,
+                "last_assigned_at":  node if node.get("value") else None,
                 "last_used_at": None,
                 "modified_at": []
             }
@@ -1552,7 +1564,7 @@ class SemanticAnalysis(SemanticBase):
             "readonly": True,
             "scope_name": self.current_scope().name,
             "error_data": {
-                "last_assigned_at": None,
+                "last_assigned_at": node if node.get("value") else None,
                 "last_used_at": None,
                 "modified_at": []
             }

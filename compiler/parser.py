@@ -32,6 +32,8 @@ INCDEC = ("PRE_INC", "PRE_DEC", "POST_INC", "POST_DEC")
 CONTROL_INS = ("CNT", "BREAK", "PASS")
 BOOLNULL = ("NULL", "BOOL")
 BASE_TYPES = ("NUMBER", "FLOAT", "STRING", "ID")
+COMPOUND_ASSIGN = ("PLUS-EQ", "MINUS-EQ", "MUL-EQ",
+                    "DIV-EQ", "IDIV-EQ", "PERCENT-EQ")
 
 
 def print_tree(node: dict, indent: int=0):
@@ -58,6 +60,12 @@ def print_tree(node: dict, indent: int=0):
             print_tree(child, indent + 4)
         return
     
+    if node["type"] == "COMPOUND_ASSIGN":
+        print(" " * indent + f"COMPOUND_ASSIGN ({node['op']})" + pos_str(node))
+        print_tree(node["left"], indent + 4)
+        print_tree(node["right"], indent + 4)
+        return
+
     # бинарные операторы.
     if node["type"] in BINARY_OPERATORS:
         print(" " * indent + node["type"] + pos_str(node))
@@ -523,29 +531,49 @@ class Parser:
             "col": token.col if token else 0,
         }
 
+    
+
     def parse_assigment(self):
         if self.check("ID"):
             left = self.parse_atom()
-            
-            # если после атомарного нет равно - это выражение, а не присваивание.
-            if not self.check("EQUAL"):
-                return left
-            
-            self.eat("EQUAL")
-            token = self.cur()
-            right = self.parse_or()
-            self.skip_newlines()
-            
-            if left["type"] == "ID":
-                return {"type": "ASSIGN", "left": left, "right": right,
-                        "line": token.line, "col": token.col}
-            elif left["type"] == "FIELD":
-                return {"type": "SET_FIELD", "left": left, "right": right,
-                        "line": token.line, "col": token.col}
-            elif left["type"] == "INDEX":
-                return {"type": "SET_INDEX", "left": left, "right": right,
-                        "line": token.line, "col": token.col}
 
+            # обычное присваивание.
+            if self.check("EQUAL"):
+                self.eat("EQUAL")
+                token = self.cur()
+                right = self.parse_or()
+                self.skip_newlines()
+
+                if left["type"] == "ID":
+                    return {"type": "ASSIGN", "left": left, "right": right,
+                            "line": token.line, "col": token.col}
+                elif left["type"] == "FIELD":
+                    return {"type": "SET_FIELD", "left": left, "right": right,
+                            "line": token.line, "col": token.col}
+                elif left["type"] == "INDEX":
+                    return {"type": "SET_INDEX", "left": left, "right": right,
+                            "line": token.line, "col": token.col}
+                return left
+
+            # составное присваивание: +=, -=, *=, /=, \\=, %=.
+            if self.cur() is not None and self.cur().dtype in COMPOUND_ASSIGN:
+                op_token = self.cur()
+                self.eat(op_token.dtype)
+                self.skip_newlines()
+                right = self.parse_or()
+                self.skip_newlines()
+
+                return {
+                    "type": "COMPOUND_ASSIGN",
+                    "op": op_token.dtype,
+                    "left": left,
+                    "right": right,
+                    "line": op_token.line,
+                    "col": op_token.col,
+                    "end_col": op_token.col + len(op_token.text),
+                }
+
+            # иначе просто выражение.
             return left
 
 
@@ -776,7 +804,7 @@ class Parser:
         self.skip_newlines()
         token = self.cur()
         self.next()
-        value = token.text.strip('\'"')
+        value = token.value
         return {
             "type": "STRING",
             "value": value,

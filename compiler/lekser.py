@@ -57,6 +57,29 @@ KEYWORDS = {
 
 }
 
+DOUBLE_TOKEN_MAP = {
+    "==": "EQEQ",
+    "!=": "NOTEQ",
+    "<=": "LE",
+    ">=": "GE",
+    ">>": "SHR",
+    "<<": "SHL",
+    "||": "OR",
+    "&&": "AND",
+    "++": "INC",
+    "--": "DEC",
+    "+>": "ARR_ADD",
+    "->": "ARROW",
+    "*>": "ARR_MUL",
+    "::": "DOUBLECOL",
+    "\\\\": "IDIV",
+    "+=": "PLUS-EQ",
+    "-=": "MINUS-EQ",
+    "*=": "MUL-EQ",
+    "/=": "DIV-EQ",
+    "%=": "PERCENT-EQ",
+}
+
 
 class Token:
     def __init__(self, text: str, dtype: str, line: int, col: int, value=None):
@@ -96,26 +119,17 @@ class Lekser:
 
     def parse_number(self, num_str: str, start_line: int, start_col: int):
         clean_num = num_str.replace('_', '')
-
-        # --- DEBUG ---
-        print(f"[DBG parse_number] raw={num_str!r} clean={clean_num!r} "
-              f"line={start_line} col={start_col}")
-
         if '.' in clean_num:
             value = float(clean_num)
             return Token(str(value), "FLOAT", start_line, start_col, value)
 
         if clean_num.startswith('0x') or clean_num.startswith('0X'):
-            # --- DEBUG ---
-            print(f"[DBG] hex branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 16)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         elif clean_num.startswith('0o') or clean_num.startswith('0O'):
-            print(f"[DBG] oct branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 8)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         elif clean_num.startswith('0b') or clean_num.startswith('0B'):
-            print(f"[DBG] bin branch, digits after prefix = {clean_num[2:]!r}")
             value = int(clean_num, 2)
             return Token(str(value), "NUMBER", start_line, start_col, value)
         else:
@@ -302,52 +316,11 @@ class Lekser:
             # двойные символы.
             if self.i + 1 < len(self.text):
                 two = self.text[self.i] + self.text[self.i + 1]
-                if two == "==":
-                    self.arr.append(Token("==", "EQEQ", self.line, self.col))
+                if two in DOUBLE_TOKEN_MAP:
+                    name = DOUBLE_TOKEN_MAP[two]
+                    self.arr.append(Token(two, name, self.line, self.col))
                     self.advance(); self.advance(); continue
-                elif two == "!=":
-                    self.arr.append(Token("!=", "NOTEQ", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "<=":
-                    self.arr.append(Token("<=", "LE", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == ">=":
-                    self.arr.append(Token(">=", "GE", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == ">>":
-                    self.arr.append(Token(">>", "SHR", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "<<":
-                    self.arr.append(Token("<<", "SHL", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "||":
-                    self.arr.append(Token("||", "OR", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "&&":
-                    self.arr.append(Token("&&", "AND", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "++":
-                    self.arr.append(Token("++", "INC", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "--":
-                    self.arr.append(Token("--", "DEC", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "+>":
-                    self.arr.append(Token("+>", "ARR_ADD", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "->":
-                    self.arr.append(Token("->", "ARROW", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "*>":
-                    self.arr.append(Token("*>", "ARR_MUL", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "::":
-                    self.arr.append(Token("::", "DOUBLECOL", self.line, self.col))
-                    self.advance(); self.advance(); continue
-                elif two == "\\\\":
-                    self.arr.append(Token("\\\\", "IDIV", self.line, self.col))
-                    self.advance(); self.advance(); continue
-
+                
             # SINGLE SYMBOL
             start_line = self.line
             start_col = self.col

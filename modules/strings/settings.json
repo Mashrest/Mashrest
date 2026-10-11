@@ -75,12 +75,39 @@
     },
 
     "ord": {
-      "description": "Converts a character into its Unicode code point. If the string contains multiple characters, returns an array of code points.",
+      "description": "Converts a single character into its Unicode code point.",
       "example": "s::ord(\"H\") -> 72",
       "args": [
-        { "name": "text", "type": "string", "required": true }
+        { "name": "char", "type": "string", "required": true }
       ],
-      "returns": "integer|array"
+      "returns": "integer"
+    },
+
+    "hex_to_decimal": {
+      "description": "Converts a hex-string to decimal integer.",
+      "example": "s::hex_to_decimal(\"FF\") -> 255",
+      "args": [
+        { "name": "hex", "type": "string", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "oct_to_decimal": {
+      "description": "Converts an octal-string to decimal integer.",
+      "example": "s::oct_to_decimal(\"777\") -> 511",
+      "args": [
+        { "name": "oct", "type": "string", "required": true }
+      ],
+      "returns": "integer"
+    },
+
+    "bin_to_decimal": {
+      "description": "Converts an binary-string to decimal integer.",
+      "example": "s::bin_to_decimal(\"101001\") -> 41",
+      "args": [
+        { "name": "bin", "type": "string", "required": true }
+      ],
+      "returns": "integer"
     },
 
     "contains": {
@@ -189,10 +216,57 @@
       "description": "Concatenates all string elements of `array` into a single string, inserting `separator` between adjacent elements. If `separator` is omitted, an empty string is used.",
       "example": "s::join([\"a\", \"b\", \"c\"], \",\") -> \"a,b,c\"",
       "args": [
-        { "name": "array",     "type": "array",  "required": true },
+        { "name": "array", "type": "array",  "required": true },
         { "name": "separator", "type": "string", "required": false, "default": "" }
       ],
       "returns": "string"
-    }
+    },
+
+    "split": {
+      "description": "Divides a string in places where was found separator.",
+      "example": "s::join([\"a\", \"b\", \"c\"], \",\") -> \"a,b,c\"",
+      "args": [
+        { "name": "string", "type": "string",  "required": true },
+        { "name": "separator", "type": "string", "required": false, "default": "," }
+      ],
+      "returns": "array"
+    },
+
+    "escape": {
+      "description": "Returns a copy of `text` where non-printable and special characters are replaced by their escape sequences. Newlines, tabs, carriage returns, null bytes, backslashes and double quotes become `\\n`, `\\t`, `\\r`, `\\0`, `\\\\`, `\\\"`; other control characters (codes below 0x20 and 0x7F) become `\\xHH`. All other bytes, including UTF-8 sequences, are copied unchanged. Useful for debug output, logging, and writing text into formats where raw control characters are not allowed.",
+      "example": "s::escape(\"a\\nb\") -> \"a\\\\nb\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "unescape": {
+      "description": "Returns a copy of `text` where escape sequences are replaced by the characters they denote. Recognized sequences: `\\n`, `\\t`, `\\r`, `\\a`, `\\b`, `\\f`, `\\v`, `\\0`, `\\\\`, `\\\"`, `\\'`, `\\xHH` (one byte), `\\uHHHH` (one Unicode code point, 4 hex digits), `\\UHHHHHHHH` (one Unicode code point, 8 hex digits). An unknown, incomplete or invalid sequence is left unchanged as-is. This is the operation that turns the two characters `\\` and `n` into a real newline byte.",
+      "example": "s::unescape(\"a\\\\nb\") -> \"a\\nb\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "reverse": {
+      "description": "Returns a reversed string copy.",
+      "example": "s::reverse(\"Hello\") -> \"olleH\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "replace_all": {
+      "description": "Replaces ",
+      "example": "s::reverse(\"Hello\") -> \"olleH\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    },
+    
   }
 }
