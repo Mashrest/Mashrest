@@ -5,6 +5,15 @@
 #include <string.h>  
 #include <ctype.h>      
 
+
+static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
+{
+    if (required != got) {
+        api->msrest_panic("[EVAL] Type error: %s() Required: %s, Got: %s\n", 
+            funcname, type_names[required], type_names[got]);
+    }
+}
+
 /* парсинг математики */
 
 typedef struct Parser {
@@ -133,15 +142,15 @@ static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
 }
 
 /* экспортируемая функция eval */
-EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
+EXPORT Value build_ast(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_STRING, args[0].type);
+    lib_check_type(api, MSREST_STRING, args[0].type, "build_ast");
     
     const char* expr = api->string_data(args[0]);
     size_t len = api->string_bytes(args[0]);
     
     if (len == 0) {
-        api->msrest_panic("eval(): empty expression");
+        api->msrest_panic("[EVAL] build_ast(): empty expression");
     }
     
     Parser parser;
@@ -155,7 +164,7 @@ EXPORT Value eval(MsrestAPI* api, Value* args, int argc) {
     /* проверяем, что дошли до конца */
     skip_spaces(&parser);
     if (parser.pos < parser.len) {
-        api->msrest_panic("eval(): unexpected characters after expression");
+        api->msrest_panic("[EVAL] eval(): unexpected characters after expression");
     }
     
     return ast;
@@ -198,7 +207,7 @@ static double eval_ast_node(MsrestAPI* api, Value node) {
 
 EXPORT Value eval_ast(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_DICT, args[0].type);
+    lib_check_type(api, MSREST_DICT, args[0].type, "eval_ast");
     
     double result = eval_ast_node(api, args[0]);
     return api->float_to_value(result);

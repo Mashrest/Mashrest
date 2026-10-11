@@ -1,19 +1,21 @@
 
 #include "API/msrest_api.h"
 
-/* дополнительные интеграции стандартных библиотек */
 #include <direct.h>
 #include <stdio.h>
 
 #define MAX_READFILE_SIZE 2147483648
+#define LIB_NAME "FILE"
+
+
 
 EXPORT Value exists(MsrestAPI *api, Value *args, int argc)
 {   
     api->check_argc(argc, 1);
-    api->check_type(MSREST_STRING, args[0].type);
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "exists");
 
     if(api->string_empty(args[0])) {
-        api->msrest_msg("[FILE] exists(): Cannot check an empty string!\n"); 
+        api->msrest_msg("[" LIB_NAME "] exists(): Cannot check an empty string!\n"); 
         return api->bool_to_value(0);}
     
     FILE *f = fopen(api->string_data(args[0]), "r");
@@ -28,10 +30,10 @@ EXPORT Value exists(MsrestAPI *api, Value *args, int argc)
 EXPORT Value readf(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_STRING, args[0].type);
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "read");
 
     FILE *f = fopen(api->string_data(args[0]), "rb");
-    if (!f) api->msrest_panic("[FILE] read(): Cannot find file");
+    if (!f) api->msrest_panic("[" LIB_NAME "] read(): Cannot find file");
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -44,13 +46,13 @@ EXPORT Value readf(MsrestAPI *api, Value *args, int argc)
 
     if (size > MAX_READFILE_SIZE) {
     fclose(f);
-    api->msrest_panic("[FILE] read(): file too large for readfile");
+    api->msrest_panic("[" LIB_NAME "] read(): file too large for readfile");
 }
 
     if (read != (size_t)size) {
         fclose(f);
         free(buffer);
-        api->msrest_panic("[FILE] read(): cannot open this file, read %d bytes, file size %d bytes", read, size);
+        api->msrest_panic("[" LIB_NAME "]read(): cannot open this file, read %d bytes, file size %d bytes", read, size);
     }
 
     fclose(f);
@@ -65,9 +67,8 @@ EXPORT Value readlines(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 2);
 
-    // проверяем тип первого аргумента (имя файла).
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_STRING, args[1].type);
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "readlines");
+    api->lib_check_type(MSREST_STRING, args[1].type, LIB_NAME, "readlines");
 
     // получаем режим.
     const char *mode = api->string_data(args[1]);
@@ -79,11 +80,11 @@ EXPORT Value readlines(MsrestAPI *api, Value *args, int argc)
     else if (strcmp(mode, "all") == 0) { 
         clean_mode = 0;} 
     else { 
-        api->msrest_panic("[FILE] readlines(): invalid mode. Use 'clean' or 'all'\n");}
+        api->msrest_panic("[" LIB_NAME "] readlines(): invalid mode. Use 'clean' or 'all'\n");}
 
     // открываем файл.
     FILE *f = fopen(api->string_data(args[0]), "rb");
-    if (!f) api->msrest_panic("[FILE] readlines(): cannot open file\n");
+    if (!f) api->msrest_panic("[" LIB_NAME "] readlines(): cannot open file\n");
     
     // получаем размер файла.
     fseek(f, 0, SEEK_END);
@@ -93,7 +94,7 @@ EXPORT Value readlines(MsrestAPI *api, Value *args, int argc)
     char *buffer = malloc(size + 1);
     if (!buffer) {
         fclose(f);
-        api->msrest_panic("[FILE] readlines(): memory allocation failed\n");}
+        api->msrest_panic("[" LIB_NAME "] readlines(): memory allocation failed\n");}
 
     size_t read = fread(buffer, 1, size, f);
     buffer[read] = '\0';
@@ -101,7 +102,7 @@ EXPORT Value readlines(MsrestAPI *api, Value *args, int argc)
     if (read != (size_t)size) {
         fclose(f);
         free(buffer);
-        api->msrest_panic("[FILE] readlines(): read error\n");
+        api->msrest_panic("[" LIB_NAME "] readlines(): read error\n");
     }
 
     // создаем массив для строк.
@@ -154,13 +155,14 @@ EXPORT Value readlines(MsrestAPI *api, Value *args, int argc)
 EXPORT Value writetofile(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 2);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_STRING, args[1].type);
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "write");
+    api->lib_check_type(MSREST_STRING, args[1].type, LIB_NAME, "write");
+
     FILE *f = fopen(api->string_data(args[0]), "wb");
 
     uint32_t byte_length = api->string_bytes(args[1]);
 
-    if (!f) api->msrest_panic("[FILE] write(): Cannot open file");
+    if (!f) api->msrest_panic("[" LIB_NAME "] write(): Cannot open file");
     const char *text = api->string_data(args[1]);
     fwrite(text, 1, byte_length, f);
 
@@ -171,14 +173,14 @@ EXPORT Value writetofile(MsrestAPI *api, Value *args, int argc)
 EXPORT Value append(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 2);
-    api->check_type(MSREST_STRING, args[0].type);
-    api->check_type(MSREST_STRING, args[1].type);
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "append");
+    api->lib_check_type(MSREST_STRING, args[1].type, LIB_NAME, "append");
 
     const char *filename = api->string_data(args[0]);
     const char *content = api->string_data(args[1]);
 
     FILE *f = fopen(filename, "ab");
-    if (!f) api->msrest_panic("[FILE] append(): cannot open file for appending\n");
+    if (!f) api->msrest_panic("[" LIB_NAME "] append(): cannot open file for appending\n");
     
     size_t written = fwrite(content, 1, strlen(content), f);
     fclose(f);

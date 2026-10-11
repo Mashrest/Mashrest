@@ -8,12 +8,12 @@
         "abi": 1
     },
     "functions": {
-        "eval": {
+        "build_ast": {
             "description": {
                 "en": "Parses a mathematical expression and returns the AST (Abstract Syntax Tree) as a dictionary.",
                 "ru": "Разбирает математическое выражение и возвращает AST (абстрактное синтаксическое дерево) в виде словаря."
             },
-            "example": "e::eval(\"2 + 3 * 4\")",
+            "example": "e::build_ast(\"2 + 3 * 4\")",
             "args": [
                 { "name": "expression", "type": "string", "required": true }
             ],

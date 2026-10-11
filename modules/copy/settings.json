@@ -8,16 +8,16 @@
         "abi": 1
     },
     "functions": {
-        "copy": {
+        "upcopy": {
             "description": {
-                "en": "Parses a mathematical expression and returns the AST (Abstract Syntax Tree) as a dictionary.",
-                "ru": "Разбирает математическое выражение и возвращает AST (абстрактное синтаксическое дерево) в виде словаря."
+                "en": "Returns a shallow copy of the given value. For a dict or array, a new container is created with the same top-level elements (nested values are shared by reference).",
+                "ru": "Возвращает поверхностную копию переданного значения. Для словаря или массива создаётся новый контейнер с теми же элементами верхнего уровня (вложенные значения разделяются по ссылке)."
             },
             "example": "x = c::copy(array)",
             "args": [
                 { "name": "copyable", "type": "any", "required": true }
             ],
-            "returns": "dict|string|allarray"
+            "returns": "dict|array"
         }
     }
 }

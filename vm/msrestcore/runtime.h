@@ -363,6 +363,17 @@ static inline Value null_to_value(void)
     return v;
 }
 
+
+
+static inline void lib_check_type(uint8_t required, uint8_t got, const char *lib_name, const char *funcname)
+{
+    if (required != got) {
+        msrest_panic("[%s] Type error: %s() Required: %s, Got: %s\n", 
+            lib_name, funcname, type_names[required], type_names[got]);
+    }
+}
+
+
 /* Array functions */
 Value array_new(uint32_t capacity);
 IntArray *intarray_new(uint32_t size);
@@ -370,7 +381,7 @@ IntArray *intarray_new(uint32_t size);
 void array_push(Value v, Value value);
 Value array_pop(Value v);
 
-int array_index_check(Value v, int index);
+int array_index_check(Value v, uint32_t index);
 void array_set(Value v, uint32_t index, Value value);
 
 /* String functions */

@@ -69,6 +69,7 @@ MsrestAPI msrest_api = {
     .dict_delete = dict_delete,
     .dict_size = dict_size,
     .dict_keys = dict_keys,
+    .lib_check_type = lib_check_type,
 
 };
 
@@ -644,7 +645,9 @@ Value array_new(uint32_t size)
 
 
 
-int array_index_check(Value v, int index)
+
+
+int array_index_check(Value v, uint32_t index)
 {
     if (v.type != MSREST_ARRAY)
         msrest_panic("[lib] Type error: Expected array");

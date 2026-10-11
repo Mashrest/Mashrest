@@ -1,6 +1,7 @@
 #include "API/msrest_api.h"
+#define LIB_NAME "COPY"
 
-EXPORT Value copy(MsrestAPI *api, Value *args, int argc)
+EXPORT Value up_copy(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
     Value copyable = args[0];
@@ -26,6 +27,10 @@ EXPORT Value copy(MsrestAPI *api, Value *args, int argc)
                 api->dict_set(out, key, v);
             }
             return out;
+        }
+
+        default: {
+            api->msrest_panic("[" LIB_NAME "] upcopy(): Unsupported type to copy (expected dictionary or array)");
         }
 
     }

@@ -8,17 +8,6 @@
     "abi": 1
   },
   "functions": {
-    "bubble_sort_int": {
-      "description": {
-        "en": "Sorts an array of integers in ascending order using the bubble sort algorithm.",
-        "ru": "Сортирует массив целых чисел по возрастанию алгоритмом пузырьковой сортировки."
-      },
-      "example": "a::bubble_sort_int([3, 1, 2] #i) -> [1, 2, 3]",
-      "args": [
-        { "name": "array", "type": "array", "required": true }
-      ],
-      "returns": "array"
-    },
 
     "bubble_sort": {
       "description": {
@@ -44,18 +33,6 @@
       "returns": "array"
     },
 
-    "test_partition": {
-      "description": {
-        "en": "Partitions an array around a pivot element and returns the rearranged array (used for testing).",
-        "ru": "Разбивает массив относительно опорного элемента и возвращает переставленный массив (используется для тестирования)."
-      },
-      "example": "a::test_partition([3, 1, 2]) -> [1, 2, 3]",
-      "args": [
-        { "name": "array", "type": "array", "required": true }
-      ],
-      "returns": "array"
-    },
-
     "pdq_sort": {
       "description": {
         "en": "Sorts an array in ascending order using the pattern-defeating quicksort (PDQ) algorithm.",
@@ -67,5 +44,6 @@
       ],
       "returns": "array"
     }
+    
   }
 }

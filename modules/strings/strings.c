@@ -781,7 +781,7 @@ EXPORT Value bin_to_decimal(MsrestAPI* api, Value* args, int argc)
     }
 
     for (uint32_t i = 0; i < string_len; i++) {
-        if (start_oct[i] != '0' || start_oct[i] != '1') {
+        if (start_oct[i] != '0' && start_oct[i] != '1') {
             api->msrest_panic("[STRINGS] bin_to_decimal(): cannot convert non-bin number to decimal");
         }
     }
@@ -865,6 +865,7 @@ EXPORT Value split(MsrestAPI* api, Value* args, int argc)
 
     const char *sep = api->string_data(args[1]);
     uint32_t sep_len = api->string_bytes(args[1]);
+    if (sep_len == 0) api->msrest_panic("[STRINGS] split(): separator cannot be empty");
 
     Value out = api->array_new(0);
 
@@ -1050,7 +1051,7 @@ EXPORT Value unescape(MsrestAPI* api, Value* args, int argc) {
         }
     }
 
-    #undef ESCAPE_CASE
+    #undef BACK_ESCAPE
 
     Value v = api->string_new_len(out, len);
     free(out);
@@ -1156,4 +1157,72 @@ EXPORT Value reverse(MsrestAPI* api, Value* args, int argc)
     Value out = api->string_new_len(writer, text_len);
     free(writer);
     return out;
+}
+
+
+EXPORT Value repeat(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 2);
+    lib_check_type(api, MSREST_STRING, args[0].type, "repeat");
+    lib_check_type(api, MSREST_INT, args[1].type, "repeat");
+
+    const char *text = api->string_data(args[0]);
+    uint32_t text_len = api->string_bytes(args[0]);
+    int64_t count = api->value_to_int(args[1]);
+
+    if (text_len == 0) return api->string_new_len("", 0);
+    if (count == 0) return api->string_new_len("", 0);
+    if (count < 0) api->msrest_panic("[STRINGS] repeat(): Cannot use negative value as repeat count %lld", count);
+    if (count >= UINT32_MAX) api->msrest_panic("[STRINGS] repeat(): repeat amount is too big: %lld", count);
+
+    int64_t expected_len = text_len * count;
+    if (expected_len >= (int64_t)UINT32_MAX) api->msrest_panic("[STRINGS] repeat(): final string is too big: %lld", expected_len);
+    expected_len = (uint32_t)expected_len;
+
+    char *out_str = safe_malloc(api, expected_len);
+    int64_t c = 0;
+    while (c < expected_len) {
+        memcpy(out_str + c, text, (size_t)text_len);
+        c += text_len;
+    }
+
+    Value out = api->string_new_len(out_str, expected_len);
+    free(out_str);
+    return out;
+}
+
+EXPORT Value ascii_letters(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 52);
+}
+
+EXPORT Value ascii_lowercase(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len("abcdefghijklmnopqrstuvwxyz", 26);
+}
+
+EXPORT Value ascii_uppercase(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
+}
+
+EXPORT Value hex_digits(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len("0123456789ABCDEFabcdef", 22);
+}
+
+EXPORT Value oct_digits(MsrestAPI* api, Value* args, int argc) 
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len("01234567", 8);
+}
+
+EXPORT Value whitespace(MsrestAPI* api, Value* args, int argc)
+{
+    api->check_argc(argc, 0);
+    return api->string_new_len(" \t\n\r\v\f", 6);
 }

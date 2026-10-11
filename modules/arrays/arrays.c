@@ -4,11 +4,14 @@
 #include <stdio.h>  
 #include <math.h> 
 
+#define LIB_NAME "ARRAYS"
 
 typedef struct {
     int left;
     int right;
 } Partition;
+
+
 
 void repr(int64_t *ptr, size_t s) 
 {
@@ -36,6 +39,15 @@ void repr_char(char *ptr, size_t s)
     }
 }
 
+
+
+
+static void* safe_malloc(MsrestAPI *api, size_t size) {
+    void* p = malloc(size);
+    if (!p) api->msrest_panic("[" LIB_NAME "] memory allocation failed");
+    return p;
+}
+
 void swap_elements(double *numbers, char *types, int j) {
     // меняем числа.
     double temp_num = numbers[j];
@@ -55,24 +67,24 @@ void swap_ints(int64_t *i, int j)
     i[j+1] = temp;
 }
 
+
+// неактивно.
 EXPORT Value bubble_sort_int(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_ARRAY, args[0].type);
+    api->lib_check_type(MSREST_INT_ARRAY, args[0].type, LIB_NAME, "bubble_sort_int");
 
     uint32_t size = api->array_size(args[0]);
 
     /* Первая проверка на числовые типы */
     for (int i = 0; i<size; i++) {
         Value v = api->array_get(args[0], i);
-        if (!(api->value_type(v) == MSREST_INT)) {
-            api->msrest_panic("Cannot sort non-number values!\n");
-        }
+        api->lib_check_type(MSREST_INT, v.type, LIB_NAME, "bubble_sort_int");
     }
 
     /* Аллоцируем память на нужное количество чистых чисел без обертки */
     /* Мы знаем, что тут только числа, float будет позже */
-    int64_t *integers = malloc(size * sizeof(int64_t));
+    int64_t *integers = safe_malloc(api, size * sizeof(int64_t));
 
     /* Распаковываем по адресу в массиве */
     for (int i = 0; i<size; i++) {
@@ -109,12 +121,11 @@ EXPORT Value bubble_sort_int(MsrestAPI *api, Value *args, int argc)
 EXPORT Value bubble_sort(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_ARRAY, args[0].type);
+    api->lib_check_type(MSREST_INT, args[0].type, LIB_NAME, "bubble_sort");
 
     uint32_t size = api->array_size(args[0]);
 
-    char *types = malloc((size_t)size * sizeof(char));
-    if (types == NULL) { api->msrest_panic("Cannot allocate memory! \n");}
+    char *types = safe_malloc(api, (size_t)size * sizeof(char));
 
     for (int i = 0; i<size; i++) {
         Value v = api->array_get(args[0], i);
@@ -126,12 +137,12 @@ EXPORT Value bubble_sort(MsrestAPI *api, Value *args, int argc)
             }
             default: { 
                 free(types);
-                api->msrest_panic("Cannot sort non-number value!\n");
+                api->msrest_panic("[" LIB_NAME "] bubble_sort(): Cannot sort non-number value!\n");
             }
         }
     }
 
-    double *numbers = malloc(size * sizeof(double));
+    double *numbers = safe_malloc(api, size * sizeof(double));
 
     for (int i = 0; i<size; i++) {
         Value intermediate = api->array_get(args[0], i);
@@ -196,29 +207,30 @@ void insertion_sort_ptr(double *numbers, char *types, int lo, int hi)
 EXPORT Value insertion_sort(MsrestAPI *api, Value *args, int argc) 
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_ARRAY, args[0].type);
+    api->lib_check_type(MSREST_ARRAY, args[0].type, LIB_NAME, "insertion_sort");
 
     uint32_t size = api->array_size(args[0]);
-    char *types = malloc((size_t)size * sizeof(char));
-    if (types == NULL) { api->msrest_panic("Cannot allocate memory! \n");}
+    char *types = safe_malloc(api, (size_t)size * sizeof(char));
 
     for (int i = 0; i<size; i++) {
         Value v = api->array_get(args[0], i);
 
         switch(api->value_type(v)) {
-            case MSREST_INT: { types[i] = 0; break;
+            case MSREST_INT: { 
+                types[i] = 0; break;
             }
-            case MSREST_FLOAT: { types[i] = 1; break;
+            case MSREST_FLOAT: { 
+                types[i] = 1; break;
             }
             default: { 
                 free(types);
-                api->msrest_panic("Cannot sort non-number value!\n");
+                api->msrest_panic("[" LIB_NAME "] insertion_sort(): Cannot sort non-number value!\n");
             }
         }
     }
 
 
-    double *numbers = malloc(size * sizeof(double));
+    double *numbers = safe_malloc(api, size * sizeof(double));
 
     for (int i = 0; i<size; i++) {
         Value intermediate = api->array_get(args[0], i);
@@ -453,19 +465,16 @@ void pdq_recursive(double *numbers, char *types, int lo, int hi, int depth_limit
 EXPORT Value pdq_sort(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_ARRAY, args[0].type);
+    api->lib_check_type(MSREST_ARRAY, args[0].type, LIB_NAME, "pdq_sort");
 
     uint32_t size = api->array_size(args[0]);
-    char *types = malloc((size_t)size * sizeof(char));
-
-    if (types == NULL)
-        api->msrest_panic("[ARRAYS] Cannot allocate memory! \n");
+    char *types = safe_malloc(api, (size_t)size * sizeof(char));
 
     // проверяем элементы массива.
     for (int i = 0; i<size; i++) {
         Value v = api->array_get(args[0], i);
 
-        switch(api->value_type(v)) {
+        switch(v.type) {
             case MSREST_INT: { 
                 types[i] = 0; break;
             }
@@ -474,12 +483,12 @@ EXPORT Value pdq_sort(MsrestAPI *api, Value *args, int argc)
             }
             default: { 
                 free(types);
-                api->msrest_panic("[ARRAYS] Cannot sort non-number value!\n");
+                api->msrest_panic("[" LIB_NAME "] pdq_sort(): Cannot sort non-number value!\n");
             }
         }
     }
 
-    double *numbers = malloc(size * sizeof(double));
+    double *numbers = safe_malloc(api, size * sizeof(double));
 
     for (int i = 0; i<size; i++) {
         Value intermediate = api->array_get(args[0], i);

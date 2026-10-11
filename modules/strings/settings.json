@@ -9,7 +9,10 @@
   },
   "functions": {
     "length": {
-      "description": "Returns the number of characters in the string (not bytes).",
+      "description": {
+        "en": "Returns the number of characters in the string (not bytes).",
+        "ru": "Возвращает количество символов в строке (не байтов)."
+      },
       "example": "s::length(\"Hello\")",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -18,7 +21,10 @@
     },
 
     "chr": {
-      "description": "Converts an ASCII/Unicode code point (or an array of code points) into a string.",
+      "description": {
+        "en": "Converts an ASCII/Unicode code point (or an array of code points) into a string.",
+        "ru": "Преобразует код ASCII/Unicode (или массив кодов) в строку."
+      },
       "example": "s::chr(65)",
       "overloads": [
         {
@@ -37,7 +43,10 @@
     },
 
     "substr": {
-      "description": "Returns a substring of `text` starting at character index `start` with the given character length. If `length` is omitted, the substring extends to the end of the string.",
+      "description": {
+        "en": "Returns a substring of `text` starting at character index `start` with the given character length. If `length` is omitted, the substring extends to the end of the string.",
+        "ru": "Возвращает подстроку `text`, начиная с индекса символа `start`, указанной длины в символах. Если `length` опущена, подстрока идёт до конца строки."
+      },
       "example": "s::substr(\"Hello\", 1, 3) -> \"ell\"",
       "args": [
         { "name": "text", "type": "string", "required": true },
@@ -48,7 +57,10 @@
     },
 
     "upper": {
-      "description": "Converts string to uppercase.",
+      "description": {
+        "en": "Converts string to uppercase.",
+        "ru": "Преобразует строку в верхний регистр."
+      },
       "example": "s::upper(\"hello\") -> \"HELLO\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -57,7 +69,10 @@
     },
 
     "lower": {
-      "description": "Converts string to lowercase.",
+      "description": {
+        "en": "Converts string to lowercase.",
+        "ru": "Преобразует строку в нижний регистр."
+      },
       "example": "s::lower(\"HELLO\") -> \"hello\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -66,7 +81,10 @@
     },
 
     "empty": {
-      "description": "Checks if string is empty.",
+      "description": {
+        "en": "Checks if string is empty.",
+        "ru": "Проверяет, является ли строка пустой."
+      },
       "example": "s::empty(\"\") -> true",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -75,7 +93,10 @@
     },
 
     "ord": {
-      "description": "Converts a single character into its Unicode code point.",
+      "description": {
+        "en": "Converts a single character into its Unicode code point.",
+        "ru": "Преобразует одиночный символ в его код Unicode."
+      },
       "example": "s::ord(\"H\") -> 72",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -84,7 +105,10 @@
     },
 
     "hex_to_decimal": {
-      "description": "Converts a hex-string to decimal integer.",
+      "description": {
+        "en": "Converts a hex-string to decimal integer.",
+        "ru": "Преобразует hex-строку в десятичное целое число."
+      },
       "example": "s::hex_to_decimal(\"FF\") -> 255",
       "args": [
         { "name": "hex", "type": "string", "required": true }
@@ -93,7 +117,10 @@
     },
 
     "oct_to_decimal": {
-      "description": "Converts an octal-string to decimal integer.",
+      "description": {
+        "en": "Converts an octal-string to decimal integer.",
+        "ru": "Преобразует восьмеричную строку в десятичное целое число."
+      },
       "example": "s::oct_to_decimal(\"777\") -> 511",
       "args": [
         { "name": "oct", "type": "string", "required": true }
@@ -102,7 +129,10 @@
     },
 
     "bin_to_decimal": {
-      "description": "Converts an binary-string to decimal integer.",
+      "description": {
+        "en": "Converts a binary-string to decimal integer.",
+        "ru": "Преобразует двоичную строку в десятичное целое число."
+      },
       "example": "s::bin_to_decimal(\"101001\") -> 41",
       "args": [
         { "name": "bin", "type": "string", "required": true }
@@ -111,7 +141,10 @@
     },
 
     "contains": {
-      "description": "Checks if `haystack` contains `needle`.",
+      "description": {
+        "en": "Checks if `haystack` contains `needle`.",
+        "ru": "Проверяет, содержит ли `haystack` подстроку `needle`."
+      },
       "example": "s::contains(\"Hello\", \"ell\") -> true",
       "args": [
         { "name": "haystack", "type": "string", "required": true },
@@ -121,7 +154,10 @@
     },
 
     "find": {
-      "description": "Finds the character index of the first occurrence of `needle` in `haystack`. Returns -1 if not found.",
+      "description": {
+        "en": "Finds the character index of the first occurrence of `needle` in `haystack`. Returns -1 if not found.",
+        "ru": "Находит индекс символа первого вхождения `needle` в `haystack`. Возвращает -1, если не найдено."
+      },
       "example": "s::find(\"Hello\", \"l\") -> 2",
       "args": [
         { "name": "haystack", "type": "string", "required": true },
@@ -131,7 +167,10 @@
     },
 
     "trim": {
-      "description": "Removes Unicode whitespace from both ends of the string.",
+      "description": {
+        "en": "Removes Unicode whitespace from both ends of the string.",
+        "ru": "Удаляет пробельные символы Unicode с обоих концов строки."
+      },
       "example": "s::trim(\"  hi  \") -> \"hi\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -140,7 +179,10 @@
     },
 
     "is_digit": {
-      "description": "Checks whether the passed single character is a decimal digit (0-9).",
+      "description": {
+        "en": "Checks whether the passed single character is a decimal digit (0-9).",
+        "ru": "Проверяет, является ли переданный одиночный символ десятичной цифрой (0-9)."
+      },
       "example": "s::is_digit(\"7\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -149,7 +191,10 @@
     },
 
     "is_alpha": {
-      "description": "Checks whether the passed single character is a letter (Latin or Cyrillic).",
+      "description": {
+        "en": "Checks whether the passed single character is a letter (Latin or Cyrillic).",
+        "ru": "Проверяет, является ли переданный одиночный символ буквой (латиница или кириллица)."
+      },
       "example": "s::is_alpha(\"A\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -158,7 +203,10 @@
     },
 
     "is_alnum": {
-      "description": "Checks whether the passed single character is alphanumeric (letter or digit).",
+      "description": {
+        "en": "Checks whether the passed single character is alphanumeric (letter or digit).",
+        "ru": "Проверяет, является ли переданный одиночный символ буквенно-цифровым (буква или цифра)."
+      },
       "example": "s::is_alnum(\"7\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -167,7 +215,10 @@
     },
 
     "is_space": {
-      "description": "Checks whether the passed single character is Unicode whitespace.",
+      "description": {
+        "en": "Checks whether the passed single character is Unicode whitespace.",
+        "ru": "Проверяет, является ли переданный одиночный символ пробельным символом Unicode."
+      },
       "example": "s::is_space(\" \") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -176,7 +227,10 @@
     },
 
     "is_upper": {
-      "description": "Checks whether the passed single character is an uppercase letter (Latin or Cyrillic).",
+      "description": {
+        "en": "Checks whether the passed single character is an uppercase letter (Latin or Cyrillic).",
+        "ru": "Проверяет, является ли переданный одиночный символ заглавной буквой (латиница или кириллица)."
+      },
       "example": "s::is_upper(\"A\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -185,7 +239,10 @@
     },
 
     "is_lower": {
-      "description": "Checks whether the passed single character is a lowercase letter (Latin or Cyrillic).",
+      "description": {
+        "en": "Checks whether the passed single character is a lowercase letter (Latin or Cyrillic).",
+        "ru": "Проверяет, является ли переданный одиночный символ строчной буквой (латиница или кириллица)."
+      },
       "example": "s::is_lower(\"a\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -194,7 +251,10 @@
     },
 
     "is_hex": {
-      "description": "Checks whether the passed single character is a hexadecimal digit (0-9, A-F, a-f).",
+      "description": {
+        "en": "Checks whether the passed single character is a hexadecimal digit (0-9, A-F, a-f).",
+        "ru": "Проверяет, является ли переданный одиночный символ шестнадцатеричной цифрой (0-9, A-F, a-f)."
+      },
       "example": "s::is_hex(\"F\") -> true",
       "args": [
         { "name": "char", "type": "string", "required": true }
@@ -203,7 +263,10 @@
     },
 
     "format": {
-      "description": "Returns a formatted string using a template and a dictionary of values. Placeholders use the syntax `{key}`, `{key.precision}` for floating-point precision, and `{{` / `}}` for literal braces. Raises an error if a key is missing or braces are unbalanced.",
+      "description": {
+        "en": "Returns a formatted string using a template and a dictionary of values. Placeholders use the syntax `{key}`, `{key.precision}` for floating-point precision, and `{{` / `}}` for literal braces. Raises an error if a key is missing or braces are unbalanced.",
+        "ru": "Возвращает отформатированную строку по шаблону и словарю значений. Плейсхолдеры используют синтаксис `{key}`, `{key.precision}` для точности чисел с плавающей точкой и `{{` / `}}` для литеральных фигурных скобок. Вызывает ошибку, если ключ отсутствует или скобки несбалансированы."
+      },
       "example": "s::format(\"Hello, {name}! {pi.2}\", {\"name\": \"Bob\", \"pi\": 3.14159}) -> \"Hello, Bob! 3.14\"",
       "args": [
         { "name": "template", "type": "string", "required": true },
@@ -211,29 +274,38 @@
       ],
       "returns": "string"
     },
-    
+
     "join": {
-      "description": "Concatenates all string elements of `array` into a single string, inserting `separator` between adjacent elements. If `separator` is omitted, an empty string is used.",
+      "description": {
+        "en": "Concatenates all string elements of `array` into a single string, inserting `separator` between adjacent elements. If `separator` is omitted, an empty string is used.",
+        "ru": "Объединяет все строковые элементы `array` в одну строку, вставляя `separator` между соседними элементами. Если `separator` опущен, используется пустая строка."
+      },
       "example": "s::join([\"a\", \"b\", \"c\"], \",\") -> \"a,b,c\"",
       "args": [
-        { "name": "array", "type": "array",  "required": true },
+        { "name": "array", "type": "array", "required": true },
         { "name": "separator", "type": "string", "required": false, "default": "" }
       ],
       "returns": "string"
     },
 
     "split": {
-      "description": "Divides a string in places where was found separator.",
-      "example": "s::join([\"a\", \"b\", \"c\"], \",\") -> \"a,b,c\"",
+      "description": {
+        "en": "Divides a string in places where was found separator.",
+        "ru": "Разделяет строку в местах, где найден разделитель."
+      },
+      "example": "s::split(\"a,b,c\", \",\") -> [\"a\", \"b\", \"c\"]",
       "args": [
-        { "name": "string", "type": "string",  "required": true },
+        { "name": "string", "type": "string", "required": true },
         { "name": "separator", "type": "string", "required": false, "default": "," }
       ],
       "returns": "array"
     },
 
     "escape": {
-      "description": "Returns a copy of `text` where non-printable and special characters are replaced by their escape sequences. Newlines, tabs, carriage returns, null bytes, backslashes and double quotes become `\\n`, `\\t`, `\\r`, `\\0`, `\\\\`, `\\\"`; other control characters (codes below 0x20 and 0x7F) become `\\xHH`. All other bytes, including UTF-8 sequences, are copied unchanged. Useful for debug output, logging, and writing text into formats where raw control characters are not allowed.",
+      "description": {
+        "en": "Returns a copy of `text` where non-printable and special characters are replaced by their escape sequences. Newlines, tabs, carriage returns, null bytes, backslashes and double quotes become `\\n`, `\\t`, `\\r`, `\\0`, `\\\\`, `\\\"`; other control characters (codes below 0x20 and 0x7F) become `\\xHH`. All other bytes, including UTF-8 sequences, are copied unchanged. Useful for debug output, logging, and writing text into formats where raw control characters are not allowed.",
+        "ru": "Возвращает копию `text`, в которой непечатаемые и специальные символы заменены их escape-последовательностями. Переводы строки, табуляции, возвраты каретки, нулевые байты, обратные слэши и двойные кавычки становятся `\\n`, `\\t`, `\\r`, `\\0`, `\\\\`, `\\\"`; остальные управляющие символы (коды ниже 0x20 и 0x7F) становятся `\\xHH`. Все остальные байты, включая последовательности UTF-8, копируются без изменений. Полезно для отладочного вывода, логирования и записи текста в форматы, где недопустимы сырые управляющие символы."
+      },
       "example": "s::escape(\"a\\nb\") -> \"a\\\\nb\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -242,7 +314,10 @@
     },
 
     "unescape": {
-      "description": "Returns a copy of `text` where escape sequences are replaced by the characters they denote. Recognized sequences: `\\n`, `\\t`, `\\r`, `\\a`, `\\b`, `\\f`, `\\v`, `\\0`, `\\\\`, `\\\"`, `\\'`, `\\xHH` (one byte), `\\uHHHH` (one Unicode code point, 4 hex digits), `\\UHHHHHHHH` (one Unicode code point, 8 hex digits). An unknown, incomplete or invalid sequence is left unchanged as-is. This is the operation that turns the two characters `\\` and `n` into a real newline byte.",
+      "description": {
+        "en": "Returns a copy of `text` where escape sequences are replaced by the characters they denote. Recognized sequences: `\\n`, `\\t`, `\\r`, `\\a`, `\\b`, `\\f`, `\\v`, `\\0`, `\\\\`, `\\\"`, `\\'`, `\\xHH` (one byte), `\\uHHHH` (one Unicode code point, 4 hex digits), `\\UHHHHHHHH` (one Unicode code point, 8 hex digits). An unknown, incomplete or invalid sequence is left unchanged as-is. This is the operation that turns the two characters `\\` and `n` into a real newline byte.",
+        "ru": "Возвращает копию `text`, в которой escape-последовательности заменены обозначаемыми ими символами. Распознаются последовательности: `\\n`, `\\t`, `\\r`, `\\a`, `\\b`, `\\f`, `\\v`, `\\0`, `\\\\`, `\\\"`, `\\'`, `\\xHH` (один байт), `\\uHHHH` (один код Unicode, 4 hex-цифры), `\\UHHHHHHHH` (один код Unicode, 8 hex-цифр). Неизвестная, неполная или некорректная последовательность остаётся без изменений. Эта операция превращает два символа `\\` и `n` в настоящий байт перевода строки."
+      },
       "example": "s::unescape(\"a\\\\nb\") -> \"a\\nb\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -251,7 +326,10 @@
     },
 
     "reverse": {
-      "description": "Returns a reversed string copy.",
+      "description": {
+        "en": "Returns a reversed string copy.",
+        "ru": "Возвращает перевёрнутую копию строки."
+      },
       "example": "s::reverse(\"Hello\") -> \"olleH\"",
       "args": [
         { "name": "text", "type": "string", "required": true }
@@ -260,13 +338,91 @@
     },
 
     "replace_all": {
-      "description": "Replaces ",
-      "example": "s::reverse(\"Hello\") -> \"olleH\"",
+      "description": {
+        "en": "Replaces all occurrences of `old` in `text` with `new`.",
+        "ru": "Заменяет все вхождения `old` в `text` на `new`."
+      },
+      "example": "s::replace_all(\"a-b-c\", \"-\", \"+\") -> \"a+b+c\"",
       "args": [
-        { "name": "text", "type": "string", "required": true }
+        { "name": "text", "type": "string", "required": true },
+        { "name": "old", "type": "string", "required": true },
+        { "name": "new", "type": "string", "required": true }
       ],
       "returns": "string"
     },
-    
+
+    "repeat": {
+      "description": {
+        "en": "Inserts a copy of the source string the specified number of times.",
+        "ru": "Вставляет копию исходной строки указанное количество раз."
+      },
+      "example": "s::repeat(\"Hello\", 3) -> \"HelloHelloHello\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true },
+        { "name": "amount", "type": "integer", "required": true }
+      ],
+      "returns": "string"
+    },
+
+    "ascii_letters": {
+      "description": {
+        "en": "Returns a string containing all ASCII letters (a-z, A-Z).",
+        "ru": "Возвращает строку, содержащую все ASCII-буквы (a-z, A-Z)."
+      },
+      "example": "s::ascii_letters() -> \"abc...XYZ\"",
+      "args": [],
+      "returns": "string"
+    },
+
+    "ascii_lowercase": {
+      "description": {
+        "en": "Returns a string containing all lowercase ASCII letters (a-z).",
+        "ru": "Возвращает строку, содержащую все строчные ASCII-буквы (a-z)."
+      },
+      "example": "s::ascii_lowercase() -> \"abc...xyz\"",
+      "args": [],
+      "returns": "string"
+    },
+
+    "ascii_uppercase": {
+      "description": {
+        "en": "Returns a string containing all uppercase ASCII letters (A-Z).",
+        "ru": "Возвращает строку, содержащую все заглавные ASCII-буквы (A-Z)."
+      },
+      "example": "s::ascii_uppercase() -> \"ABC...XYZ\"",
+      "args": [],
+      "returns": "string"
+    },
+
+    "hex_digits": {
+      "description": {
+        "en": "Returns a string containing all hexadecimal digits (0-9, A-F, a-f).",
+        "ru": "Возвращает строку, содержащую все шестнадцатеричные цифры (0-9, A-F, a-f)."
+      },
+      "example": "s::hex_digits() -> \"0123456789ABCDEFabcdef\"",
+      "args": [],
+      "returns": "string"
+    },
+
+    "oct_digits": {
+      "description": {
+        "en": "Returns a string containing all octal digits (0-7).",
+        "ru": "Возвращает строку, содержащую все восьмеричные цифры (0-7)."
+      },
+      "example": "s::oct_digits() -> \"01234567\"",
+      "args": [],
+      "returns": "string"
+    },
+
+    "whitespace": {
+      "description": {
+        "en": "Returns a string containing common ASCII whitespace characters (space, tab, newline, carriage return, vertical tab, form feed).",
+        "ru": "Возвращает строку, содержащую распространённые ASCII-пробельные символы (пробел, табуляция, перевод строки, возврат каретки, вертикальная табуляция, подача страницы)."
+      },
+      "example": "s::whitespace() -> \" \\t\\n\\r\\v\\f\"",
+      "args": [],
+      "returns": "string"
+    }
+
   }
 }

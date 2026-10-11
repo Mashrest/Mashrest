@@ -99,6 +99,7 @@ struct Value {
 
 /* Mashrest API export functions declaration */
 typedef struct {
+
     Value (*string_to_value)(const char *);
     Value (*int_to_value)(intptr_t);
     Value (*float_to_value)(double);
@@ -110,12 +111,10 @@ typedef struct {
     uint8_t (*value_to_bool)(Value);
     char *(*value_to_string)(Value v);
 
-    uint8_t (*value_type)(Value);
 
     void (*msrest_panic)(const char *, ...);
     void (*msrest_msg)(const char *fmt, ...);
-    
-    const char *(*string_data)(Value);
+
 
     uint32_t (*array_size)(Value);
     Value (*array_get)(Value, int);
@@ -123,18 +122,28 @@ typedef struct {
     void (*array_push)(Value, Value);
     Value (*array_pop)(Value);
     Value (*array_new)(uint32_t capacity);
+    int (*array_index_check)(Value, uint32_t);
+
 
     uint32_t (*string_bytes)(Value);
     uint32_t (*string_chars)(Value);
+    const char *(*string_data)(Value);
     uint8_t (*string_empty)(Value);
-    int (*array_index_check)(Value, int);
+
     Value (*string_new)(const char *str);
     Value (*string_new_len)(const char *str, size_t len);
+
+
     Value (*native_new)(const char *, void *, void (*)(void *));
     void *(*native_payload)(Value, const char *);
+
+
     void (*check_type)(uint8_t required, uint8_t got);
     void (*check_argc)(const char *func_name, uint16_t argc, uint16_t required);
     uint8_t (*soft_check_type)(uint8_t required, uint8_t got);
+    uint8_t (*value_type)(Value);
+    void (*lib_check_type)(uint8_t required, uint8_t got, const char *lib_name, const char *funcname);
+
 
     Value (*dict_new)(void);
     void (*dict_set)(Value dict_val, Value key_val, Value value);
