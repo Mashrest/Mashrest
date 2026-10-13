@@ -6,6 +6,11 @@ INT = 3
 FLOAT = 2
 STRING = 1
 
+ABI_VERSION = 0
+
+SOURCE_POLICY_NONE   = 0x00
+SOURCE_POLICY_FILE   = 0x01
+SOURCE_POLICY_INLINE = 0x02
 
 RANGE_ENTRY_FMT = "<IIHHHH"
 RANGE_ENTRY_SIZE = struct.calcsize(RANGE_ENTRY_FMT)   # 16 байт
@@ -29,48 +34,71 @@ def group_bytes(data, group_size=2):
 def wrap_with_headers(code_bytes,
                       pool_bytes=None,
                       import_bytes=None,
-                      range_bytes=None):
+                      range_bytes=None,
+                      source_policy=SOURCE_POLICY_FILE,
+                      source_bytes=None):
     """
-    Оборачивает байты кода в структуру:
-    HEADER: 9xEA
-    IMPORT: 9xED + импорты
-    POOL:   9xEC + данные пула
-    RANGES: 9xE9 + таблица диапазонов (для красивых рантайм-ошибок)
-    CODE:   9xEB + данные кода (HALT - EE)
-    END:    9xEF
+    Обертка .orb.
+    HEADER:  9xEA + abi(2) + policy(1) + flags(1)
+    SOURCE:  9xE1 + len(4) + text   (len=0 если исходник не вшит)
+    IMPORT:  9xED + импорты
+    POOL:    9xEC + данные пула
+    RANGES:  9xE9 + таблица диапазонов
+    CODE:    9xEB + код
+    END:     9xEF
     """
     result = bytearray()
-    result.extend(b'\xEA' * 9)           # HEADER.
+
+    # HEADER.
+    result.extend(b'\xEA' * 9)
+    result.extend(ABI_VERSION.to_bytes(2, "little"))
+    result.append(source_policy & 0xFF)
+    result.append(0)   # flags, зарезервировано.
+
+    # SOURCE — всегда. len=0, если исходник не вшит.
+    result.extend(b'\xE1' * 9)
+    if source_bytes:
+        result.extend(len(source_bytes).to_bytes(4, "little"))
+        result.extend(source_bytes)
+    else:
+        result.extend((0).to_bytes(4, "little"))
 
     # IMPORTы.
     result.extend(b'\xED' * 9)
     if import_bytes:
         result.extend(import_bytes)
 
-    result.extend(b'\xEC' * 9)           # заголовок пула констант.
+    # POOL.
+    result.extend(b'\xEC' * 9)
     if pool_bytes:
-        result.extend(pool_bytes)        # данные пула.
+        result.extend(pool_bytes)
 
-    # таблица диапазонов ip -> (line, col). нужна рантайму для ошибок.
+    # RANGES.
     result.extend(b'\xE9' * 9)
     if range_bytes:
         result.extend(range_bytes)
 
-    result.extend(b'\xEB' * 9)           # CODE заголовок.
-    result.extend(code_bytes)            # данные кода.
-    result.extend(b'\xEF' * 9)           # END.
+    # CODE.
+    result.extend(b'\xEB' * 9)
+    result.extend(code_bytes)
+
+    # END.
+    result.extend(b'\xEF' * 9)
     return bytes(result)
 
 
 def convert_all_with_headers(lines, pool_bytes=None,
-                             import_bytes=None, range_bytes=None):
+                             import_bytes=None, range_bytes=None,
+                             source_policy=SOURCE_POLICY_FILE,
+                             source_bytes=None):
     code_bytes = convert_all(lines)
-
     return wrap_with_headers(
         code_bytes,
         pool_bytes,
         import_bytes,
         range_bytes,
+        source_policy,
+        source_bytes,
     )
 
 def make_constant_pool(pool):

@@ -48,6 +48,12 @@ enum {
 };
 
 enum {
+    SOURCE_POLICY_NONE   = 0,
+    SOURCE_POLICY_FILE   = 1,
+    SOURCE_POLICY_INLINE = 2,
+};
+
+enum {
     DICT_KEYS = 1,
     DICT_PAIRS,
     DICT_VALUES,
@@ -159,6 +165,13 @@ typedef struct {
     uint16_t _pad;
 } RangeEntry;
 
+typedef struct {
+    uint8_t  policy;
+    uint8_t  flags;
+    char    *path;       /* путь к .msr-файлу, если policy == FILE */
+    char    *text;       /* вшитый исходник, если policy == INLINE */
+    uint32_t text_len;
+} Source;
 
 struct Frame {
     int return_ip;
@@ -183,6 +196,9 @@ struct Program {
     /* таблица диапазонов ip -> исходник. опциональная. */
     RangeEntry *ranges;
     uint32_t range_count;
+
+    Source *source;
+    uint16_t abi_version;
 };
 
 // Panic
@@ -292,6 +308,7 @@ static void gc_push_gray(GCHeader *obj)
 
 
 /* Program */
+
 Program* load_program(const char *filename);
 void free_program(Program *prog);
 int load_constants(uint8_t *code, int pos, Value *constant_pool, int constant_count);

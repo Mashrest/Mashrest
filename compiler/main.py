@@ -6,14 +6,15 @@ from .bytecoder import BytecodeGenerator
 from .assembler import process_mrb_file
 from .translator import synthesize
 from .pusher import convert_all_with_headers, make_constant_pool, make_import_table, make_range_table
+from .pusher import SOURCE_POLICY_FILE, SOURCE_POLICY_INLINE, SOURCE_POLICY_NONE
 import sys
 import json
 import os
 
 
-AST = True
+AST = False
 DEBUG = True
-DIS = True
+DIS = False
 
 
 """COLORS = {
@@ -37,6 +38,17 @@ COLORS = {
     'cyan': ""
 }
 
+
+# отображение строкового режима исходника в политику байт-кода.
+SOURCE_MODE_TO_POLICY = {
+    "none":   SOURCE_POLICY_NONE,
+    "file":   SOURCE_POLICY_FILE,
+    "inline": SOURCE_POLICY_INLINE,
+}
+
+
+def source_mode_to_policy(mode):
+    return SOURCE_MODE_TO_POLICY.get(mode, SOURCE_POLICY_INLINE)
 
 
 def parse_and_preprocess(source):
@@ -152,8 +164,10 @@ def disassemble(instructions):
         f.write(output)
 
 
-def assemble_final(optimum_code, code_meta, generator):
-    # process_mrb_file теперь возвращает три значения:
+def assemble_final(optimum_code, code_meta, generator,
+                   source_policy=SOURCE_POLICY_INLINE,
+                   source_bytes=None):
+    # process_mrb_file возвращает:
     # линкованный код, старые ranges (по функциям, не используются) и
     # параллельные метаданные new_code_meta.
     assembled_code, ranges, new_code_meta = process_mrb_file(optimum_code, code_meta)
@@ -187,6 +201,8 @@ def assemble_final(optimum_code, code_meta, generator):
         pool_bytes,
         wrapped_import_bytes,
         range_bytes,
+        source_policy,
+        source_bytes,
     )
     return byte_result
 
@@ -234,7 +250,8 @@ def build_loc_ranges(new_code_meta):
 
     return ranges
 
-def processing(source, input_file, output_file="output.mrb"):
+
+def processing(source, input_file, output_file="output.mrb", source_mode="inline"):
 
     preprocessed = parse_and_preprocess(source)
     if preprocessed is None:
@@ -264,7 +281,17 @@ def processing(source, input_file, output_file="output.mrb"):
     code_meta = generator.code_meta
     disassemble(optimum_code)
 
-    byte_result = assemble_final(optimum_code, code_meta, generator)
+    # политика встраивания исходника.
+    policy = source_mode_to_policy(source_mode)
+
+    # текст вшиваем только для INLINE. для FILE/NONE — None.
+    src_bytes = source.encode("utf-8") if policy == SOURCE_POLICY_INLINE else None
+
+    byte_result = assemble_final(
+        optimum_code, code_meta, generator,
+        source_policy=policy,
+        source_bytes=src_bytes,
+    )
 
     with open(output_file, "wb") as f:
         f.write(byte_result)

@@ -172,6 +172,59 @@ static const RangeEntry* find_range(uint32_t ip)
 }
 
 
+
+static const char* source_text(Source *src)
+{
+    if (!src) return NULL;
+    if (src->text) return src->text;
+
+    if (src->policy == SOURCE_POLICY_FILE && src->path) {
+        FILE *f = fopen(src->path, "rb");
+        if (!f) return NULL;
+        fseek(f, 0, SEEK_END);
+        long n = ftell(f);
+        rewind(f);
+        if (n > 0) {
+            src->text = safe_malloc(n + 1);
+            fread(src->text, 1, n, f);
+            src->text[n] = '\0';
+            src->text_len = (uint32_t)n;
+        }
+        fclose(f);
+        return src->text;
+    }
+    return NULL;
+}
+
+
+static void print_source_line(Source *src, uint32_t line,
+                              uint16_t col, uint16_t end_col)
+{
+    if (!src || !src->text) return;
+
+    const char *s = src->text;
+    uint32_t cur = 0;
+    const char *line_start = s;
+
+    while (cur < line && *line_start) {
+        if (*line_start == '\n') cur++;
+        line_start++;
+    }
+
+    const char *line_end = line_start;
+    while (*line_end && *line_end != '\n') line_end++;
+
+    fprintf(stderr, "%u | %.*s\n", (unsigned)(line + 1),
+            (int)(line_end - line_start), line_start);
+
+    int prefix_len = snprintf(NULL, 0, "%u | ", (unsigned)(line + 1));
+    for (int i = 0; i < prefix_len + col; i++) fputc(' ', stderr);
+    int width = (end_col > col) ? (end_col - col) : 1;
+    for (int i = 0; i < width; i++) fputc('^', stderr);
+    fputc('\n', stderr);
+}
+
+
 void msrest_panic(const char *fmt, ...)
 {
     va_list args;
@@ -191,6 +244,15 @@ void msrest_panic(const char *fmt, ...)
                     (unsigned)e->line + 1,
                     (unsigned)e->col,
                     (unsigned)e->end_col);
+
+            Source *src = g_prog->source;
+            if (src) {
+                /* source_text сделает ленивую загрузку, если policy == FILE. */
+                const char *text = source_text(src);
+                if (text) {
+                    print_source_line(src, e->line, e->col, e->end_col);
+                }
+            }
         } else {
             fprintf(stderr, "  at ip = %d (no debug info)\n", vm->ip);
         }
@@ -1273,6 +1335,20 @@ char* array_to_string(Array* arr)
 
 /* < PROGRAM LOADER > */
 
+static char* derive_source_path(const char *mrb_path)
+{
+    const char *dot = strrchr(mrb_path, '.');
+    size_t base_len = dot ? (size_t)(dot - mrb_path) : strlen(mrb_path);
+    const char *ext = ".msr";
+    size_t ext_len = strlen(ext);
+
+    char *result = safe_malloc(base_len + ext_len + 1);
+    memcpy(result, mrb_path, base_len);
+    memcpy(result + base_len, ext, ext_len + 1);
+    return result;
+}
+
+
 /*Find marker*/
 int find_marker(uint8_t *code, int file_size, uint8_t marker, int start_offset) {
     for(int i = start_offset; i < file_size - 8; i++) {
@@ -1355,6 +1431,7 @@ Program* load_program(const char *filename) {
     int header_start = find_marker(code, file_size, 0xEA, 0);
     int import_start = find_marker(code, file_size, 0xED, 0);
     int pool_start   = find_marker(code, file_size, 0xEC, 0);
+    int source_start = find_marker(code, file_size, 0xE1, 0);
     int range_start  = find_marker(code, file_size, 0xE9, 0);
     int code_start   = find_marker(code, file_size, 0xEB, 0);
     int code_end     = find_marker(code, file_size, 0xEF, 0);
@@ -1368,6 +1445,46 @@ Program* load_program(const char *filename) {
     Program *prog = safe_malloc(sizeof(Program));
     memset(prog, 0, sizeof(Program));
 
+     /* HEADER: abi(2) + policy(1) + flags(1). */
+    uint8_t policy = SOURCE_POLICY_NONE;
+    uint8_t flags  = 0;
+    if (header_start != -1) {
+        int hpos = header_start;
+        prog->abi_version = read_short(code + hpos); hpos += 2;
+        policy = code[hpos++];
+        flags  = code[hpos++];
+    }
+
+    /* SOURCE-секция: len(4) + текст. len=0, если исходник не вшит. */
+    char *src_text = NULL;
+    uint32_t src_len = 0;
+    if (source_start != -1) {
+        int spos = source_start;
+        uint32_t slen = (uint32_t)read_int(code + spos); spos += 4;
+        if (slen > 0 && slen < (uint32_t)file_size) {
+            src_text = safe_malloc(slen + 1);
+            memcpy(src_text, code + spos, slen);
+            src_text[slen] = '\0';
+            src_len = slen;
+        }
+    }
+
+    /* создаём Source, если политика не NONE или есть вшитый текст. */
+    if (policy != SOURCE_POLICY_NONE || src_text) {
+        Source *src = safe_calloc(1, sizeof(Source));
+        src->policy = policy;
+        src->flags  = flags;
+        src->text = src_text;
+        src->text_len = src_len;
+
+        if (policy == SOURCE_POLICY_FILE) {
+            src->path = derive_source_path(filename);
+        }
+
+        prog->source = src;
+    } else if (src_text) {
+        free(src_text);
+    }
     // импортики.
     if (import_start != -1) {
         int ipos = import_start;
@@ -1455,6 +1572,12 @@ void free_program(Program *prog) {
     /*Free the code*/
     if (prog->code) {
         free(prog->code);}
+
+    if (prog->source) {
+        if (prog->source->text) free(prog->source->text);
+        if (prog->source->path) free(prog->source->path);
+        free(prog->source);
+    }
 }
 
 /* < BYTECODE VALIDATION > */
