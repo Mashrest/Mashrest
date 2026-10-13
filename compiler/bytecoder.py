@@ -121,6 +121,16 @@ class BytecodeGenerator:
     def emit(self, instruction):
         self.code.append(instruction)
 
+        n = self.current_node
+        if n is None or n.get("type") in ("PROGRAM", "PASS"):
+            self.code_meta.append(None)
+        else:
+            self.code_meta.append((
+                n.get("line", 0),
+                n.get("col", 0),
+                n.get("end_col", n.get("col", 0) + 1),
+            ))
+
     def __init__(self, aliases):
         self.in_function = False
 
@@ -141,6 +151,11 @@ class BytecodeGenerator:
         self.native_imports = {}
         self.next_native_id = 0
         self.aliases = aliases
+
+        self.code_meta = []
+        self.main_code_meta = []
+        self.functions_code_meta = []
+        self.current_node = None
 
         self.method_handlers = {
             'push': self._handle_push,
@@ -301,222 +316,239 @@ class BytecodeGenerator:
         if node is None:
             return
 
-        ntype = node["type"]
+        old_node = self.current_node
+        self.current_node = node
+        try:
+            ntype = node["type"]
 
-        if ntype in self.intermediate_data:
-            symbol = self.intermediate_data.get(node["type"])
-            if symbol:
-                handler = self.opcode_handlers.get(symbol)
-                if handler:
-                    handler(node, symbol)
+            if ntype in self.intermediate_data:
+                symbol = self.intermediate_data.get(node["type"])
+                if symbol:
+                    handler = self.opcode_handlers.get(symbol)
+                    if handler:
+                        handler(node, symbol)
+                    else:
+                        raise Exception(f"[ICE] Handler not found for {symbol}")
                 else:
-                    raise Exception(f"[ICE] Handler not found for {symbol}")
-            else:
-                raise Exception(f"[ICE] Unknown opcode: {node['type']}")
+                    raise Exception(f"[ICE] Unknown opcode: {node['type']}")
 
 
-        elif ntype == "VAR":
-            self.generate(node["value"])
-            self._emit_store(node.get("alias", node["name"]))
+            elif ntype == "VAR":
+                self.generate(node["value"])
+                self._emit_store(node.get("alias", node["name"]))
 
-        elif ntype == "CONST":
-            self.generate(node["value"])
-            self._emit_store(node.get("alias", node["name"]))
+            elif ntype == "CONST":
+                self.generate(node["value"])
+                self._emit_store(node.get("alias", node["name"]))
 
 
-        elif ntype == "ID":
-            name = node["value"]
-            
-            if self.in_function and name in self.param_aliases:
-                alias = self.param_aliases[name]
-            else:
-                alias = node.get("alias", name)
-            
-            if self.in_function and alias in self.locals:
-                self.emit(f"LOAD_LOCAL {self.locals[alias]}")
-            else:
-                self.emit(f"LOAD {alias}")
-
-        elif ntype == "PROGRAM":
-            self.code = self.main_code
-            self.generate_block(node["body"])
-            self.code = []
-            self.code.append("JMP MAIN")
-            self.code.extend(self.functions_code)
-            self.code.append("LABEL MAIN")
-            self.code.extend(self.main_code)
-            self.code.append("HALT")
-
-        elif ntype == "IF":
-            else_label = self.new_label()
-            end_label = self.new_label()
-    
-            self.generate(node["condition"])
-            self.emit(f"JMP_IF_FALSE {else_label}")
-    
-            for stmt in node["body"]:
-                self.generate(stmt)
+            elif ntype == "ID":
+                name = node["value"]
                 
-    
-            self.emit(f"JMP {end_label}")
-            self.emit(f"LABEL {else_label}")
-    
-            if node["elsebody"]:
-                if isinstance(node["elsebody"], list):
-                    self.generate_block(node["elsebody"])
+                if self.in_function and name in self.param_aliases:
+                    alias = self.param_aliases[name]
                 else:
-                    self.generate(node["elsebody"])
-    
-            self.emit(f"LABEL {end_label}")
+                    alias = node.get("alias", name)
+                
+                if self.in_function and alias in self.locals:
+                    self.emit(f"LOAD_LOCAL {self.locals[alias]}")
+                else:
+                    self.emit(f"LOAD {alias}")
 
-        elif node["type"] == "WHILE":
+            elif ntype == "PROGRAM":
+                # сначала генерим main, попутно копим метаданные в main_code_meta.
+                self.code = self.main_code
+                self.code_meta = self.main_code_meta
+                self.generate_block(node["body"])
 
-            loop_label = self.new_label()
-            end_label = self.new_label()
+                # теперь склеиваем: JMP MAIN + функции + LABEL MAIN + main + HALT.
+                # метаданные склеиваем в том же порядке, чтобы индексы совпадали.
+                self.code = []
+                self.code_meta = []
+                self.code.append("JMP MAIN")
+                self.code_meta.append(None)
+                self.code.extend(self.functions_code)
+                self.code_meta.extend(self.functions_code_meta)
+                self.code.append("LABEL MAIN")
+                self.code_meta.append(None)
+                self.code.extend(self.main_code)
+                self.code_meta.extend(self.main_code_meta)
+                self.code.append("HALT")
+                self.code_meta.append(None)
 
-            self.loop_stack.append((loop_label, end_label))
-            self.emit(f"LABEL {loop_label}")
-
-            self.generate(node["condition"])
-            self.emit(f"JMP_IF_FALSE {end_label}")
-
-            self.generate_block(node["body"])
-
-
-            self.emit(f"JMP {loop_label}")
-            self.emit(f"LABEL {end_label}")
-            self.loop_stack.pop()
-
-        elif ntype == "BREAK":
-            _, end_label = self.loop_stack[-1]
-            self.emit(f"JMP {end_label}")
-
-        elif ntype== "CNT":
-            loop_label, _ = self.loop_stack[-1]
-            self.emit(f"JMP {loop_label}")
-
-        elif ntype == "ARRAY":
-
-            for item in node["items"]:
-                self.generate(item)
-
-            if node["array_type"] == "i":
-                self.emit(f"ARRE {ARRAY_INT} {len(node['items'])}")
-
-            elif node["array_type"] == "f":
-                self.emit(f"ARRE {ARRAY_FLOAT} {len(node['items'])}")
-
-            elif node["array_type"] == "b":
-                self.emit(f"ARRE {ARRAY_BOOL} {len(node['items'])}")
-
-            else:
-                self.emit(f"ARR {len(node['items'])}")
-
-        elif ntype == "SET_INDEX":
-            self.generate(node["left"]["array"])      # container
-            self.generate(node["left"]["index"])      # key / index
-            self.generate(node["right"])              # value
-            self.emit("CONT_SET")
-
-        elif ntype == "INDEX":
-            self.generate(node["array"])
-            self.generate(node["index"])
-            self.emit("CONT_GET")
-
-        elif ntype == "METHOD_CALL":
-            self.generate(node["object"])
-
-            method_name = node["method"]
-            handler = self.method_handlers.get(method_name)
-
-            if handler:
-                handler(node)
-            else:
-                raise ValueError(f"[ICE] Unknown method: {method_name}")
-
-        elif ntype == "RET":
-
-            if node["what_ret"] is None:
-                self.emit("PUSH_NULL")
-            else:
-                self.generate(node["what_ret"])
-            self.emit("RET")
-
-        elif ntype == "DOUBLECOL":
-
-            name = node["left"]["value"]
-            if name in self.aliases:
-                module = self.aliases[name]
-            else:
-                module = name
-
-            call = node["right"]        
-            func_name = call["callee"]["value"]
-
-            for arg in call["args"]:
-                self.generate(arg)
-
-            internal_name = call.get("_internal_name", func_name)
-            nid = self.get_native_id(module, internal_name)
-            argc = len(call["args"])
-            self.emit(f"CALL_NATIVE {nid} {argc}")
-
-        elif ntype == "PASS":
-            pass   # no-op
+            elif ntype == "IF":
+                else_label = self.new_label()
+                end_label = self.new_label()
+        
+                self.generate(node["condition"])
+                self.emit(f"JMP_IF_FALSE {else_label}")
+        
+                for stmt in node["body"]:
+                    self.generate(stmt)
                     
-        elif ntype == "CALL":
-            callee = node["callee"]
+        
+                self.emit(f"JMP {end_label}")
+                self.emit(f"LABEL {else_label}")
+        
+                if node["elsebody"]:
+                    if isinstance(node["elsebody"], list):
+                        self.generate_block(node["elsebody"])
+                    else:
+                        self.generate(node["elsebody"])
+        
+                self.emit(f"LABEL {end_label}")
 
-            if callee.get("type") == "ID" and callee.get("value") == "getref":
-                target = node.get("__fnref_target__")
-                arity = node.get("__fnref_arity__", 0)
-                self.emit(f"PUSH_FN FUNC_{target} {arity}")
-                return
+            elif node["type"] == "WHILE":
 
-            if node.get("__is_indirect__") or node.get("is_indirect") or callee.get("type") != "ID":
+                loop_label = self.new_label()
+                end_label = self.new_label()
+
+                self.loop_stack.append((loop_label, end_label))
+                self.emit(f"LABEL {loop_label}")
+
+                self.generate(node["condition"])
+                self.emit(f"JMP_IF_FALSE {end_label}")
+
+                self.generate_block(node["body"])
+
+
+                self.emit(f"JMP {loop_label}")
+                self.emit(f"LABEL {end_label}")
+                self.loop_stack.pop()
+
+            elif ntype == "BREAK":
+                _, end_label = self.loop_stack[-1]
+                self.emit(f"JMP {end_label}")
+
+            elif ntype== "CNT":
+                loop_label, _ = self.loop_stack[-1]
+                self.emit(f"JMP {loop_label}")
+
+            elif ntype == "ARRAY":
+
+                for item in node["items"]:
+                    self.generate(item)
+
+                if node["array_type"] == "i":
+                    self.emit(f"ARRE {ARRAY_INT} {len(node['items'])}")
+
+                elif node["array_type"] == "f":
+                    self.emit(f"ARRE {ARRAY_FLOAT} {len(node['items'])}")
+
+                elif node["array_type"] == "b":
+                    self.emit(f"ARRE {ARRAY_BOOL} {len(node['items'])}")
+
+                else:
+                    self.emit(f"ARR {len(node['items'])}")
+
+            elif ntype == "SET_INDEX":
+                self.generate(node["left"]["array"])      # container
+                self.generate(node["left"]["index"])      # key / index
+                self.generate(node["right"])              # value
+                self.emit("CONT_SET")
+
+            elif ntype == "INDEX":
+                self.generate(node["array"])
+                self.generate(node["index"])
+                self.emit("CONT_GET")
+
+            elif ntype == "METHOD_CALL":
+                self.generate(node["object"])
+
+                method_name = node["method"]
+                handler = self.method_handlers.get(method_name)
+
+                if handler:
+                    handler(node)
+                else:
+                    raise ValueError(f"[ICE] Unknown method: {method_name}")
+
+            elif ntype == "RET":
+
+                if node["what_ret"] is None:
+                    self.emit("PUSH_NULL")
+                else:
+                    self.generate(node["what_ret"])
+                self.emit("RET")
+
+            elif ntype == "DOUBLECOL":
+
+                name = node["left"]["value"]
+                if name in self.aliases:
+                    module = self.aliases[name]
+                else:
+                    module = name
+
+                call = node["right"]        
+                func_name = call["callee"]["value"]
+
+                for arg in call["args"]:
+                    self.generate(arg)
+
+                internal_name = call.get("_internal_name", func_name)
+                nid = self.get_native_id(module, internal_name)
+                argc = len(call["args"])
+                self.emit(f"CALL_NATIVE {nid} {argc}")
+
+            elif ntype == "PASS":
+                pass   # no-op
+                        
+            elif ntype == "CALL":
+                callee = node["callee"]
+
+                if callee.get("type") == "ID" and callee.get("value") == "getref":
+                    target = node.get("__fnref_target__")
+                    arity = node.get("__fnref_arity__", 0)
+                    self.emit(f"PUSH_FN FUNC_{target} {arity}")
+                    return
+
+                if node.get("__is_indirect__") or node.get("is_indirect") or callee.get("type") != "ID":
+                    for arg in node["args"]:
+                        self.generate(arg)
+                    self.generate(callee)
+                    self.emit(f"CALL_INDIRECT {len(node['args'])}")
+                    return  
+
+                func_name = callee["value"]
+
                 for arg in node["args"]:
                     self.generate(arg)
-                self.generate(callee)
-                self.emit(f"CALL_INDIRECT {len(node['args'])}")
-                return  
 
-            func_name = callee["value"]
+                integrated = self.integrated_data.get("functions")
 
-            for arg in node["args"]:
-                self.generate(arg)
+                if func_name in integrated:
+                    cur_func = integrated[func_name]
+                    metadata = cur_func.get("metadata")
+                    group = metadata.get("group")
+                    internal_name = str(metadata.get("internal_name", "-1"))
 
-            integrated = self.integrated_data.get("functions")
+                    if func_name == "typeof":
+                        self._handle_typeof(node)
+                        return
+                    elif group == "converter":
+                        self.emit(f"INVOKE_STATIC {internal_name}")
+                    elif group == "io":
+                        self.emit(internal_name)
+                    elif group == "control":
+                        self.emit(internal_name)
+                    elif group == "pseudo-random":
+                        self.emit("ALEA")
+                else:
+                    argc = len(node["args"])
+                    self.emit(f"CALL FUNC_{func_name} {argc}")
 
-            if func_name in integrated:
-                cur_func = integrated[func_name]
-                metadata = cur_func.get("metadata")
-                group = metadata.get("group")
-                internal_name = str(metadata.get("internal_name", "-1"))
-
-                if func_name == "typeof":
-                    self._handle_typeof(node)
-                    return
-                elif group == "converter":
-                    self.emit(f"INVOKE_STATIC {internal_name}")
-                elif group == "io":
-                    self.emit(internal_name)
-                elif group == "control":
-                    self.emit(internal_name)
-                elif group == "pseudo-random":
-                    self.emit("ALEA")
-            else:
-                argc = len(node["args"])
-                self.emit(f"CALL FUNC_{func_name} {argc}")
-
-        elif ntype == "DICT":
-            for item in node["items"]:
-                self.generate(item["value"])
-                self.generate(item["key"])
-            self.emit(f"DICT_NEW {len(node['items'])}")
+            elif ntype == "DICT":
+                for item in node["items"]:
+                    self.generate(item["value"])
+                    self.generate(item["key"])
+                self.emit(f"DICT_NEW {len(node['items'])}")
 
 
-            
-        return
+                
+            return
+        finally:
+            # восстанавливаем узел в любом случае, включая return и исключения.
+            self.current_node = old_node
     
 
     def get_const_id(self, value_type, value):
@@ -532,6 +564,7 @@ class BytecodeGenerator:
         self.current_func_name = func_name
 
         old_code = self.code
+        old_code_meta = self.code_meta
         old_in_function = self.in_function
         old_locals = self.locals
         old_next_local = self.next_local
@@ -547,7 +580,9 @@ class BytecodeGenerator:
         self.param_aliases = {}
 
         func_code = []
+        func_code_meta = []
         self.code = func_code
+        self.code_meta = func_code_meta
 
         # регистрируем параметры.
         for i, param in enumerate(node["params"]):
@@ -572,24 +607,27 @@ class BytecodeGenerator:
 
         label = node.get("qualified_name", node["name"])
         self.functions_code.append(f"LABEL FUNC_{label}")
+        self.functions_code_meta.append(None)
 
         if extra_locals > 0:
             self.functions_code.append(f"ENTER {extra_locals}")
             # это для резервирования локальных переменных на фрейме.
             # параметры не в счет.
+            self.functions_code_meta.append(None)
 
         self.functions_code.extend(func_code)
+        self.functions_code_meta.extend(func_code_meta)
         
         self.in_function = old_in_function
         self.locals = old_locals
         self.code = old_code
+        self.code_meta = old_code_meta
         self.next_local = old_next_local
         self.local_scopes = old_local_scopes
         self.current_func_name = old_func_name
         self.loop_stack = old_loop_stack
 
         return
-
 
     def _handle_push(self, node):
         for arg in node["args"]:

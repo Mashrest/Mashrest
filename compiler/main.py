@@ -5,15 +5,15 @@ from .semantics.semantic import SemanticAnalysis
 from .bytecoder import BytecodeGenerator
 from .assembler import process_mrb_file
 from .translator import synthesize
-from .pusher import convert_all_with_headers, make_constant_pool, make_import_table
+from .pusher import convert_all_with_headers, make_constant_pool, make_import_table, make_range_table
 import sys
 import json
 import os
 
 
-AST = False
-DEBUG = False
-DIS = False
+AST = True
+DEBUG = True
+DIS = True
 
 
 """COLORS = {
@@ -152,8 +152,11 @@ def disassemble(instructions):
         f.write(output)
 
 
-def assemble_final(optimum_code, generator):
-    assembled_code, ranges = process_mrb_file(optimum_code)
+def assemble_final(optimum_code, code_meta, generator):
+    # process_mrb_file теперь возвращает три значения:
+    # линкованный код, старые ranges (по функциям, не используются) и
+    # параллельные метаданные new_code_meta.
+    assembled_code, ranges, new_code_meta = process_mrb_file(optimum_code, code_meta)
     if DEBUG:
         print("ASSEMBLED LEN:", len(assembled_code))
 
@@ -162,8 +165,14 @@ def assemble_final(optimum_code, generator):
         print("SYNTHESIZED LEN:", len(final_code))
         print("SYNTHESIZED:", final_code)
 
+    # собираем таблицу диапазонов для рантайм-ошибок.
+    # соседние инструкции с одинаковыми координатами сливаются в один диапазон.
+    loc_ranges = build_loc_ranges(new_code_meta)
+
     pool_bytes = make_constant_pool(generator.constant_pool)
     wrapped_import_bytes = make_import_table(generator.native_imports)
+    range_bytes = make_range_table(loc_ranges)
+
     if DEBUG:
         pb_len = len(pool_bytes)
         ib_len = len(wrapped_import_bytes)
@@ -171,12 +180,61 @@ def assemble_final(optimum_code, generator):
         print("CONSTANT POOL:\n", generator.constant_pool)
         print("\nIMPORT POOL LEN:", 0 if ib_len == 4 else ib_len)
         print("IMPORT POOL:\n", generator.native_imports or "Empty")
+        print("\nRANGES LEN:", len(loc_ranges))
 
-    byte_result = convert_all_with_headers(final_code, pool_bytes, wrapped_import_bytes)
+    byte_result = convert_all_with_headers(
+        final_code,
+        pool_bytes,
+        wrapped_import_bytes,
+        range_bytes,
+    )
     return byte_result
 
 
-def processing(source, input_file, output_file="output.orb"):
+def build_loc_ranges(new_code_meta):
+    """
+    new_code_meta: параллельный список метаданных для финального кода.
+    Каждый элемент либо None (нет привязки к AST), либо
+        (line, col, end_col).
+
+    Возвращает список диапазонов:
+        [{"start_index": i, "end_index": j, "line": ..., "col": ..., "end_col": ...}, ...]
+
+    Соседние инструкции с одинаковыми метаданными сливаются в один диапазон,
+    чтобы таблица не раздувалась на длинных выражениях.
+
+    Делайте выводы.
+    """
+    ranges = []
+    i = 0
+    n = len(new_code_meta)
+    while i < n:
+        meta = new_code_meta[i]
+        if meta is None:
+            i += 1
+            continue
+
+        line_, col_, end_col_ = meta
+        start = i
+        j = i + 1
+        while j < n and new_code_meta[j] == meta:
+            j += 1
+
+        ranges.append({
+            "start_index": start,
+            "end_index": j,          # exclusive
+            "line": line_,
+            "col": col_,
+            "end_col": end_col_,
+        })
+        i = j
+
+    if DEBUG:
+        print("RANGES", ranges)
+
+    return ranges
+
+def processing(source, input_file, output_file="output.mrb"):
 
     preprocessed = parse_and_preprocess(source)
     if preprocessed is None:
@@ -203,9 +261,10 @@ def processing(source, input_file, output_file="output.orb"):
 
     generator = generate_bytecode(modified_ast, analyzer)
     optimum_code = generator.code
+    code_meta = generator.code_meta
     disassemble(optimum_code)
 
-    byte_result = assemble_final(optimum_code, generator)
+    byte_result = assemble_final(optimum_code, code_meta, generator)
 
     with open(output_file, "wb") as f:
         f.write(byte_result)

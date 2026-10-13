@@ -147,6 +147,18 @@ typedef struct {
 } NativeImport;
 
 
+/* Одна запись таблицы диапазонов: ip-индексы -> координаты в исходнике.
+   start_index/end_index - индексы инструкций в code-секции, не байты.
+   end_index эксклюзивный. line/col/end_col - 16-битные */
+typedef struct {
+    uint32_t start_index;
+    uint32_t end_index;
+    uint16_t line;
+    uint16_t col;
+    uint16_t end_col;
+    uint16_t _pad;
+} RangeEntry;
+
 
 struct Frame {
     int return_ip;
@@ -167,6 +179,10 @@ struct Program {
 
     int import_count;
     char base_path[1024];
+
+    /* таблица диапазонов ip -> исходник. опциональная. */
+    RangeEntry *ranges;
+    uint32_t range_count;
 };
 
 // Panic
@@ -210,7 +226,7 @@ static inline uint8_t soft_check_type(uint8_t required, uint8_t got)
     return required == got ? 1 : 0;
 }
 
-// В заголовочном файле API
+// TODO удалить
 static inline void msrest_check_argc_impl(const char *func_name,
                                          uint16_t argc, uint16_t required)
 {
@@ -220,6 +236,7 @@ static inline void msrest_check_argc_impl(const char *func_name,
     }
 }
 void msrest_msg(const char *fmt, ...);
+
 /* < GLOBAL VARIABLES (extern) > */
 
 extern VM *vm;
@@ -227,6 +244,7 @@ extern uint64_t opcode_stats[256];
 extern uint64_t totalInstructions;
 extern MsrestAPI msrest_api;
 extern int gc_allocations;
+extern Program *g_prog;
 
 
 /* < FUNCTION PROTOTYPES > */

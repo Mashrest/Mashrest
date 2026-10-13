@@ -6,6 +6,10 @@ INT = 3
 FLOAT = 2
 STRING = 1
 
+
+RANGE_ENTRY_FMT = "<IIHHHH"
+RANGE_ENTRY_SIZE = struct.calcsize(RANGE_ENTRY_FMT)   # 16 байт
+
 def convert_line(line):
     parts = [p.strip() for p in line.split(',') if p.strip()]
     opcode = int(parts[0], 16)
@@ -24,13 +28,14 @@ def group_bytes(data, group_size=2):
 # самый стабильный кусок кода. я его ни разу не менял толком глобально. ладно.
 def wrap_with_headers(code_bytes,
                       pool_bytes=None,
-                      import_bytes=None):
+                      import_bytes=None,
+                      range_bytes=None):
     """
     Оборачивает байты кода в структуру:
     HEADER: 9xEA
     IMPORT: 9xED + импорты
-    TODO: В БУДУЩЕМ СДЕЛАТЬ НОРМАЛЬНЫЕ ФУНКЦИИ ОТДЕЛЬНО.
     POOL:   9xEC + данные пула
+    RANGES: 9xE9 + таблица диапазонов (для красивых рантайм-ошибок)
     CODE:   9xEB + данные кода (HALT - EE)
     END:    9xEF
     """
@@ -46,22 +51,26 @@ def wrap_with_headers(code_bytes,
     if pool_bytes:
         result.extend(pool_bytes)        # данные пула.
 
+    # таблица диапазонов ip -> (line, col). нужна рантайму для ошибок.
+    result.extend(b'\xE9' * 9)
+    if range_bytes:
+        result.extend(range_bytes)
 
     result.extend(b'\xEB' * 9)           # CODE заголовок.
     result.extend(code_bytes)            # данные кода.
     result.extend(b'\xEF' * 9)           # END.
     return bytes(result)
 
-# ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ: если нужен только код без обертки
-# TODO разобрать этот кусок мезозоя
-def convert_all_with_headers (lines, pool_bytes=None, import_bytes=None):
-    
+
+def convert_all_with_headers(lines, pool_bytes=None,
+                             import_bytes=None, range_bytes=None):
     code_bytes = convert_all(lines)
 
     return wrap_with_headers(
         code_bytes,
         pool_bytes,
-        import_bytes
+        import_bytes,
+        range_bytes,
     )
 
 def make_constant_pool(pool):
@@ -105,3 +114,27 @@ def make_import_table(imports):
 
     return bytes(result)
 
+def make_range_table(ranges):
+    """
+    ranges: список словарей вида
+        {"start_index": int, "end_index": int,
+         "line": int, "col": int, "end_col": int}
+    Возвращает бинарную секцию:
+        uint32 count
+        count * 16 байт записей
+    """
+    result = bytearray()
+    result.extend(len(ranges).to_bytes(4, "little"))
+
+    for r in ranges:
+        result.extend(struct.pack(
+            RANGE_ENTRY_FMT,
+            r["start_index"],
+            r["end_index"],
+            r["line"],
+            r["col"],
+            r["end_col"],
+            0,               # паддинг, чтобы выровнять запись до 16 байт (иначе будет печально декодировать)
+        ))
+
+    return bytes(result)

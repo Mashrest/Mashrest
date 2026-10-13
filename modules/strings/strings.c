@@ -9,11 +9,13 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#define LIB_NAME "STRINGS"
+
 
 static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
 {
     if (required != got) {
-        api->msrest_panic("[STRINGS] Type error: %s() Required: %s, Got: %s\n", 
+        api->msrest_panic("[" LIB_NAME "] Type error: %s() Required: %s, Got: %s\n", 
             funcname, type_names[required], type_names[got]);
     }
 }
@@ -143,7 +145,7 @@ static uint32_t require_char(MsrestAPI* api, Value* args, int argc, const char* 
     
     const char* str = api->string_data(args[0]);
     if (api->string_chars(args[0]) != 1) {
-        api->msrest_panic("[STRINGS] %s() expects a string of length 1", func);
+        api->msrest_panic("[" LIB_NAME "] %s() expects a string of length 1", func);
     }
     return utf8_decode((uint8_t*)str);
 }
@@ -151,7 +153,7 @@ static uint32_t require_char(MsrestAPI* api, Value* args, int argc, const char* 
 // общая функция для upper/lower.
 
 static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
-    if (argc != 1) api->msrest_panic("[STRINGS] %s() expects 1 argument, got %d", 
+    if (argc != 1) api->msrest_panic("[" LIB_NAME "] %s() expects 1 argument, got %d", 
                                      to_upper ? "upper" : "lower", argc);
     lib_check_type(api, MSREST_STRING, args[0].type, to_upper ? "upper" : "lower");
     
@@ -162,7 +164,7 @@ static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
     
     size_t byte_len;
     uint32_t* cp = decode_to_codepoints(str, char_len, &byte_len);
-    if (!cp) api->msrest_panic("[STRINGS] %s() malloc failed", to_upper ? "upper" : "lower");
+    if (!cp) api->msrest_panic("[" LIB_NAME "] %s() malloc failed", to_upper ? "upper" : "lower");
     
     for (size_t i = 0; i < char_len; i++) {
         uint32_t c = cp[i];
@@ -180,7 +182,7 @@ static Value change_case(MsrestAPI* api, Value* args, int argc, int to_upper) {
     size_t new_byte_len;
     char* buf = encode_codepoints(cp, char_len, &new_byte_len);
     free(cp);
-    if (!buf) api->msrest_panic("[STRINGS] %s() malloc failed", to_upper ? "upper" : "lower");
+    if (!buf) api->msrest_panic("[" LIB_NAME "] %s() malloc failed", to_upper ? "upper" : "lower");
     
     Value result = api->string_new_len(buf, new_byte_len);
     free(buf);
@@ -234,7 +236,7 @@ static int is_hex_char(uint32_t cp) {
 
 static void* safe_realloc(MsrestAPI *api, void* ptr, size_t size) {
     void* p = realloc(ptr, size);
-    if (!p) api->msrest_panic("[STRINGS] memory reallocation failed");
+    if (!p) api->msrest_panic("[" LIB_NAME "] memory reallocation failed");
     return p;
 }
 
@@ -260,7 +262,7 @@ static char* safe_strdup(const char* s) {
 
 static void* safe_malloc(MsrestAPI *api, size_t size) {
     void* p = malloc(size);
-    if (!p) api->msrest_panic("[STRINGS] memory allocation failed");
+    if (!p) api->msrest_panic("[" LIB_NAME "] memory allocation failed");
     return p;
 }
 
@@ -325,7 +327,7 @@ EXPORT Value ord(MsrestAPI* api, Value* args, int argc) {
     const char* str = api->string_data(args[0]);
     size_t char_len = (size_t)api->string_chars(args[0]);
     
-    if (char_len == 0) api->msrest_panic("[STRINGS] ord() cannot convert an empty string\n");
+    if (char_len == 0) api->msrest_panic("[" LIB_NAME "] ord() cannot convert an empty string\n");
     
     if (char_len == 1) {
         return api->int_to_value(utf8_decode((uint8_t*)str));
@@ -348,7 +350,7 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
     if (type == MSREST_INT) {
         int32_t cp = (int32_t)api->value_to_int(args[0]);
         if (cp < 0 || cp > 0x10FFFF) {
-            api->msrest_panic("[STRINGS] chr() code point out of range (0..0x10FFFF)");
+            api->msrest_panic("[" LIB_NAME "] chr() code point out of range (0..0x10FFFF)");
         }
         char buf[5];
         size_t len = utf8_encode(buf, (uint32_t)cp);
@@ -364,26 +366,26 @@ EXPORT Value chr(MsrestAPI* api, Value* args, int argc) {
             Value v = api->array_get(args[0], i);
             if (api->value_type(v) != MSREST_INT) {
                 free(cp);
-                api->msrest_panic("[STRINGS] chr() array must contain integers");
+                api->msrest_panic("[" LIB_NAME "] chr() array must contain integers");
             }
             cp[i] = (uint32_t)api->value_to_int(v);
             if (cp[i] > 0x10FFFF) {
                 free(cp);
-                api->msrest_panic("[STRINGS] chr() code point out of range");
+                api->msrest_panic("[" LIB_NAME "] chr() code point out of range");
             }
         }
         
         size_t byte_len;
         char* buf = encode_codepoints(cp, len, &byte_len);
         free(cp);
-        if (!buf) api->msrest_panic("[STRINGS] chr(): out of memory");
+        if (!buf) api->msrest_panic("[" LIB_NAME "] chr(): out of memory");
         
         Value result = api->string_new_len(buf, byte_len);
         free(buf);
         return result;
     }
     
-    api->msrest_panic("[STRINGS] chr() expects an integer or array");
+    api->msrest_panic("[" LIB_NAME "] chr() expects an integer or array");
 }
 
 EXPORT Value contains(MsrestAPI* api, Value* args, int argc) {
@@ -527,7 +529,7 @@ EXPORT Value substr(MsrestAPI* api, Value* args, int argc) {
     int len_char = api->value_to_int(args[2]);
     
     if (start_char < 0 || start_char > (int)char_len) {
-        api->msrest_panic("[STRINGS] substr(): start out of range");
+        api->msrest_panic("[" LIB_NAME "] substr(): start out of range");
     }
     
     // -1 (или любое отрицательное) - до конца строки.
@@ -596,7 +598,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
 
             if (key_end == end) {
                 free(result);
-                api->msrest_panic("[STRINGS] format(): unclosed brace");
+                api->msrest_panic("[" LIB_NAME "] format(): unclosed brace");
             }
             
             size_t full_len = key_end - key_start;
@@ -619,7 +621,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                     free(full_cstr);
                     free(key_cstr);
                     free(result);
-                    api->msrest_panic("[STRINGS] format(): expected precision after '.'");
+                    api->msrest_panic("[" LIB_NAME "] format(): expected precision after '.'");
                 }
                 
                 char* endptr;
@@ -628,7 +630,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                     free(full_cstr);
                     free(key_cstr);
                     free(result);
-                    api->msrest_panic("[STRINGS] format(): invalid precision '%s'", prec_str);
+                    api->msrest_panic("[" LIB_NAME "] format(): invalid precision '%s'", prec_str);
                 }
                 
                 free(full_cstr);
@@ -641,7 +643,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
             
             if (!api->dict_has(dict, key_val)) {
                 free(result);
-                api->msrest_panic("[STRINGS] format(): key '%s' not found", key_cstr);
+                api->msrest_panic("[" LIB_NAME "] format(): key '%s' not found", key_cstr);
                 free(key_cstr);
             }
 
@@ -679,7 +681,7 @@ EXPORT Value format(MsrestAPI* api, Value* args, int argc) {
                 continue;
             }
             free(result);
-            api->msrest_panic("[STRINGS] format(): unexpected '}'");
+            api->msrest_panic("[" LIB_NAME "] format(): unexpected '}'");
         } else {
             const char* next_open  = memchr(p, '{', end - p);
             const char* next_close = memchr(p, '}', end - p);
@@ -712,23 +714,23 @@ EXPORT Value hex_to_decimal(MsrestAPI* api, Value* args, int argc)
     uint32_t string_len = api->string_bytes(args[0]);
 
     if (string_len == 0 || string_len > 16) {
-        api->msrest_panic("[STRINGS] hex_to_decimal(): string must be 1..16 hex chars, got %d", string_len);
+        api->msrest_panic("[" LIB_NAME "] hex_to_decimal(): string must be 1..16 hex chars, got %d", string_len);
     }
 
     for (uint32_t i = 0; i < string_len; i++) {
         if (!isxdigit((unsigned char)start_hex[i])) {
-            api->msrest_panic("[STRINGS] hex_to_decimal(): cannot convert non-hex number to decimal");
+            api->msrest_panic("[" LIB_NAME "] hex_to_decimal(): cannot convert non-hex number to decimal");
         }
     }
 
     errno = 0;
     unsigned long long u = strtoull(start_hex, NULL, 16);
     if (errno == ERANGE) {
-        api->msrest_panic("[STRINGS] hex_to_decimal(): overflow");
+        api->msrest_panic("[" LIB_NAME "] hex_to_decimal(): overflow");
     }
 
     if (u > (unsigned long long)INT64_MAX) {
-        api->msrest_panic("[STRINGS] hex_to_decimal(): value exceeds int64 max");
+        api->msrest_panic("[" LIB_NAME "] hex_to_decimal(): value exceeds int64 max");
     }
 
     return api->int_to_value((int64_t)u);
@@ -745,23 +747,23 @@ EXPORT Value oct_to_decimal(MsrestAPI* api, Value* args, int argc)
     uint32_t string_len = api->string_bytes(args[0]);
 
     if (string_len == 0 || string_len > 21) {
-        api->msrest_panic("[STRINGS] oct_to_decimal(): string must be 1..21 oct chars, got %d", string_len);
+        api->msrest_panic("[" LIB_NAME "] oct_to_decimal(): string must be 1..21 oct chars, got %d", string_len);
     }
 
     for (uint32_t i = 0; i < string_len; i++) {
         if (start_oct[i] < '0' || start_oct[i] > '7') {
-            api->msrest_panic("[STRINGS] oct_to_decimal(): cannot convert non-octal number to decimal");
+            api->msrest_panic("[" LIB_NAME "] oct_to_decimal(): cannot convert non-octal number to decimal");
         }
     }
 
     errno = 0;
     unsigned long long u = strtoull(start_oct, NULL, 8);
     if (errno == ERANGE) {
-        api->msrest_panic("[STRINGS] oct_to_decimal(): overflow");
+        api->msrest_panic("[" LIB_NAME "] oct_to_decimal(): overflow");
     }
 
     if (u > (unsigned long long)INT64_MAX) {
-        api->msrest_panic("[STRINGS] oct_to_decimal(): value exceeds int64 max");
+        api->msrest_panic("[" LIB_NAME "] oct_to_decimal(): value exceeds int64 max");
     }
 
     return api->int_to_value((int64_t)u);
@@ -777,23 +779,23 @@ EXPORT Value bin_to_decimal(MsrestAPI* api, Value* args, int argc)
     uint32_t string_len = api->string_bytes(args[0]);
 
     if (string_len == 0 || string_len > 63) {
-        api->msrest_panic("[STRINGS] bin_to_decimal(): string must be 1..63 bin chars, got %d", string_len);
+        api->msrest_panic("[" LIB_NAME "] bin_to_decimal(): string must be 1..63 bin chars, got %d", string_len);
     }
 
     for (uint32_t i = 0; i < string_len; i++) {
         if (start_oct[i] != '0' && start_oct[i] != '1') {
-            api->msrest_panic("[STRINGS] bin_to_decimal(): cannot convert non-bin number to decimal");
+            api->msrest_panic("[" LIB_NAME "] bin_to_decimal(): cannot convert non-bin number to decimal");
         }
     }
 
     errno = 0;
     unsigned long long u = strtoull(start_oct, NULL, 8);
     if (errno == ERANGE) {
-        api->msrest_panic("[STRINGS] bin_to_decimal(): overflow");
+        api->msrest_panic("[" LIB_NAME "] bin_to_decimal(): overflow");
     }
 
     if (u > (unsigned long long)INT64_MAX) {
-        api->msrest_panic("[STRINGS] bin_to_decimal(): value exceeds int64 max");
+        api->msrest_panic("[" LIB_NAME "] bin_to_decimal(): value exceeds int64 max");
     }
 
     return api->int_to_value((int64_t)u);
@@ -865,7 +867,7 @@ EXPORT Value split(MsrestAPI* api, Value* args, int argc)
 
     const char *sep = api->string_data(args[1]);
     uint32_t sep_len = api->string_bytes(args[1]);
-    if (sep_len == 0) api->msrest_panic("[STRINGS] split(): separator cannot be empty");
+    if (sep_len == 0) api->msrest_panic("[" LIB_NAME "] split(): separator cannot be empty");
 
     Value out = api->array_new(0);
 
@@ -1172,11 +1174,11 @@ EXPORT Value repeat(MsrestAPI* api, Value* args, int argc)
 
     if (text_len == 0) return api->string_new_len("", 0);
     if (count == 0) return api->string_new_len("", 0);
-    if (count < 0) api->msrest_panic("[STRINGS] repeat(): Cannot use negative value as repeat count %lld", count);
-    if (count >= UINT32_MAX) api->msrest_panic("[STRINGS] repeat(): repeat amount is too big: %lld", count);
+    if (count < 0) api->msrest_panic("[" LIB_NAME "] repeat(): Cannot use negative value as repeat count %lld", count);
+    if (count >= UINT32_MAX) api->msrest_panic("[" LIB_NAME "] repeat(): repeat amount is too big: %lld", count);
 
     int64_t expected_len = text_len * count;
-    if (expected_len >= (int64_t)UINT32_MAX) api->msrest_panic("[STRINGS] repeat(): final string is too big: %lld", expected_len);
+    if (expected_len >= (int64_t)UINT32_MAX) api->msrest_panic("[" LIB_NAME "] repeat(): final string is too big: %lld", expected_len);
     expected_len = (uint32_t)expected_len;
 
     char *out_str = safe_malloc(api, expected_len);

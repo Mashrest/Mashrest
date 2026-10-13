@@ -5,14 +5,8 @@
 #include <string.h>  
 #include <ctype.h>      
 
+#define LIB_NAME "EVAL"
 
-static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
-{
-    if (required != got) {
-        api->msrest_panic("[EVAL] Type error: %s() Required: %s, Got: %s\n", 
-            funcname, type_names[required], type_names[got]);
-    }
-}
 
 /* парсинг математики */
 
@@ -70,7 +64,7 @@ static Value parse_primary(MsrestAPI* api, Parser* p) {
     skip_spaces(p);
     
     if (p->pos >= p->len) {
-        api->msrest_panic("eval(): unexpected end of expression");
+        api->msrest_panic("[" LIB_NAME "] eval(): unexpected end of expression");
     }
     
     char c = p->input[p->pos];
@@ -87,13 +81,13 @@ static Value parse_primary(MsrestAPI* api, Parser* p) {
         Value node = parse_expression(api, p, 0);
         skip_spaces(p);
         if (p->pos >= p->len || p->input[p->pos] != ')') {
-            api->msrest_panic("eval(): expected ')'");
+            api->msrest_panic("[" LIB_NAME "] eval(): expected ')'");
         }
         p->pos++;  // пропускаем ')'
         return node;
     }
     
-    api->msrest_panic("eval(): unexpected character '%c'", c);
+    api->msrest_panic("[" LIB_NAME "] eval(): unexpected character '%c'", c);
 }
 
 /* проверка, является ли символ оператором */
@@ -144,13 +138,13 @@ static Value parse_expression(MsrestAPI* api, Parser* p, int min_precedence) {
 /* экспортируемая функция eval */
 EXPORT Value build_ast(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    lib_check_type(api, MSREST_STRING, args[0].type, "build_ast");
+    api->lib_check_type(MSREST_STRING, args[0].type, LIB_NAME, "build_ast");
     
     const char* expr = api->string_data(args[0]);
     size_t len = api->string_bytes(args[0]);
     
     if (len == 0) {
-        api->msrest_panic("[EVAL] build_ast(): empty expression");
+        api->msrest_panic("[" LIB_NAME "] build_ast(): empty expression");
     }
     
     Parser parser;
@@ -164,7 +158,7 @@ EXPORT Value build_ast(MsrestAPI* api, Value* args, int argc) {
     /* проверяем, что дошли до конца */
     skip_spaces(&parser);
     if (parser.pos < parser.len) {
-        api->msrest_panic("[EVAL] eval(): unexpected characters after expression");
+        api->msrest_panic("[" LIB_NAME "] build_ast(): unexpected characters after expression");
     }
     
     return ast;
@@ -198,16 +192,16 @@ static double eval_ast_node(MsrestAPI* api, Value node) {
             case '/': return left / right;
             case '^': return pow(left, right);
             default:
-                api->msrest_panic("[EVAL] eval_ast(): unknown operator '%c'", op[0]);
+                api->msrest_panic("[" LIB_NAME "] eval_ast(): unknown operator '%c'", op[0]);
         }
     }
     
-    api->msrest_panic("[EVAL] eval_ast(): unknown node type '%s'", type);
+    api->msrest_panic("[" LIB_NAME "] eval_ast(): unknown node type '%s'", type);
 }
 
 EXPORT Value eval_ast(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
-    lib_check_type(api, MSREST_DICT, args[0].type, "eval_ast");
+    api->lib_check_type(MSREST_DICT, args[0].type, LIB_NAME, "eval_ast");
     
     double result = eval_ast_node(api, args[0]);
     return api->float_to_value(result);

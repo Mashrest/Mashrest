@@ -62,7 +62,7 @@ typedef struct NativeObject NativeObject;
 typedef struct Dict Dict;
 
 /* < VALUE DECLARATION > */
-/* The only main Orbit Value declaration. */
+/* The only main Mashrest Value declaration. */
 struct Value {
     uint8_t type;
     union {

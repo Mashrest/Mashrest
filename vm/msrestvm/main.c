@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
         vm_destroy(vm);
         return 1;
     }
+    g_prog = prog;
 
     /* import load */
     load_imports(prog);

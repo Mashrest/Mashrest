@@ -553,7 +553,7 @@ class SemanticAnalysis(SemanticBase):
             # TODO см выше
             return
 
-        if not (lt.issubset({"NUMBER", "FLOAT"})):
+        if not (lt.issubset({"NUMBER", "FLOAT", "ARRAY"})):
             note_node, note_kind = self._get_note_for_id(node_l)
             self.error(
                 f"Cannot use {node['type']}, when left operand is {self._format_type(lt)} (expected INTEGER or FLOAT)",

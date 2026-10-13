@@ -1,4 +1,4 @@
-def process_mrb_file(code):
+def process_mrb_file(code, code_meta):
     labels = {}
     variables = {}
     next_slot = 0
@@ -29,8 +29,11 @@ def process_mrb_file(code):
         addr += 1
     
     # Во второй проход "линкуем" код.
+    # new_code_meta идёт параллельно new_code, одна запись на инструкцию.
+    # LABEL не порождает инструкцию, поэтому его метаданные пропускаются.
     new_code = []
-    for line in code:
+    new_code_meta = []
+    for line, meta in zip(code, code_meta):
         
         parts = line.strip().split()
         if not parts:
@@ -74,6 +77,10 @@ def process_mrb_file(code):
         else:
             new_code.append(line)
 
+        # метаданные кладём строго после того, как инструкция добавлена,
+        # чтобы new_code_meta[i] соответствовало new_code[i].
+        new_code_meta.append(meta)
+
     function_entries.sort(key=lambda x: x[1])
 
     ranges = []
@@ -85,5 +92,4 @@ def process_mrb_file(code):
             end = addr
         ranges.append((entry, end - entry))
 
-
-    return new_code, ranges
+    return new_code, ranges, new_code_meta

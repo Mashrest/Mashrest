@@ -120,10 +120,6 @@ int msrest_execute(Program *prog)
         [0x79] = &&OP_79,
         [0x7A] = &&OP_7A,
 
-        [0x82] = &&OP_82,
-        [0x83] = &&OP_83,
-        [0x85] = &&OP_85,
-
         [0xA0] = &&OP_A0,
         [0xA1] = &&OP_A1,
 
@@ -348,6 +344,7 @@ OP_09: {
     Value a = LPOP();
 
     if (!IS_NUMBER(a) || !IS_NUMBER(b)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);    
         msrest_panic("Type error: expected INTEGER or FLOAT, got %s and %s types\n", imm1, imm2);
@@ -355,7 +352,10 @@ OP_09: {
 
     int64_t int_a = (a.type == MSREST_INT) ? a.integer : (int64_t)value_to_double(a);
     int64_t int_b = (b.type == MSREST_INT) ? b.integer : (int64_t)value_to_double(b);
-    if (int_b == 0) msrest_panic("Access violation error: Cannot divide without remainder by zero\n");
+    if (int_b == 0) {
+        vm->ip = ip - 9;
+        msrest_panic("Access violation error: Cannot divide without remainder by zero\n");
+    }
 
     LPUSH(int_to_value(int_a / int_b));
 
@@ -378,12 +378,14 @@ OP_0A: {  // ADD
         if (both_int(a, b)) {
             int64_t imm;
             if (__builtin_add_overflow(a.integer, b.integer, &imm)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'add' operator got integer overflow\n");
             }
             result = int_to_value(imm);
         } else {
             double r = value_to_double(a) + value_to_double(b);
             if (!isfinite(r)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'add' operator got non-finite float\n");
             }
             result = float_to_value(r);
@@ -405,6 +407,7 @@ OP_0A: {  // ADD
         if (b.type != MSREST_STRING) free(b_str);
     }
     else {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'add' expected NUMBER or STRING, got %s and %s types\n", imm1, imm2);
@@ -423,6 +426,7 @@ OP_0B: {
     Value a = LPOP();
     Value result;
     if(!IS_NUMBER(a) || !IS_NUMBER(b)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'sub' expected INT or FLOAT, got %s and %s types\n", imm1, imm2);
@@ -430,6 +434,7 @@ OP_0B: {
     else if(both_int(a, b)){
         int64_t imm;
         if (__builtin_sub_overflow(a.integer, b.integer, &imm)) {
+            vm->ip = ip - 9;
             msrest_panic("Overflow error: 'sub' operator got integer overflow\n");
         }
         result = int_to_value(imm);
@@ -437,6 +442,7 @@ OP_0B: {
     else {
         double r = value_to_double(a) - value_to_double(b);
         if (!isfinite(r)) {
+            vm->ip = ip - 9;
             msrest_panic("Overflow error: 'sub' operator got non-finite float\n");
         }
         result = float_to_value(r);
@@ -460,6 +466,7 @@ OP_0C: {
     Value a = LPOP();
     Value result;
     if(!IS_NUMBER(a) || !IS_NUMBER(b)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'mul' expected INT or FLOAT, got %s and %s types\n", imm1, imm2);
@@ -467,6 +474,7 @@ OP_0C: {
     else if(both_int(a, b)){
         int64_t imm;
         if (__builtin_mul_overflow(a.integer, b.integer, &imm)) {
+            vm->ip = ip - 9;
             msrest_panic("Overflow error: 'mul' operator got integer overflow\n");
         }
         result = int_to_value(imm);
@@ -474,6 +482,7 @@ OP_0C: {
     else {
         double r = value_to_double(a) * value_to_double(b);
         if (!isfinite(r)) {
+            vm->ip = ip - 9;
             msrest_panic("Overflow error: 'mul' operator got non-finite float\n");
         }
         result = float_to_value(r);
@@ -497,6 +506,7 @@ OP_0D: {
     Value a = LPOP();
 
     if (__builtin_expect(!IS_NUMBER(a) || !IS_NUMBER(b), 0)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'div' expected INT or FLOAT, got %s and %s types\n", imm1, imm2);
@@ -506,12 +516,14 @@ OP_0D: {
     double db = value_to_double(b);
 
     if (__builtin_expect(db == 0.0, 0)) {
+        vm->ip = ip - 9;
         msrest_panic("Arithmetic error: Division by zero\n");
     }
 
     double r = da / db;
 
     if (__builtin_expect(!isfinite(r), 0)) {
+        vm->ip = ip - 9;
         msrest_panic("Overflow error: 'div' got float overflow\n");
     }
 
@@ -535,14 +547,17 @@ OP_0E: {
     Value b = LPOP();
     Value a = LPOP();
     if (__builtin_expect(a.type != MSREST_INT || b.type != MSREST_INT, 0)){
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'modulo' expects INTEGER types, got %s and %s types\n", imm1, imm2);
     }
     else if (b.integer == 0){
+        vm->ip = ip - 9;
         msrest_panic("Evaluating error: Cannot modulo by zero\n");
     }
     else if (__builtin_expect(a.integer == INT64_MIN && b.integer == -1, 0)) {
+        vm->ip = ip - 9;
         msrest_panic("Overflow error: 'modulo' got integer overflow\n");
     }
     LPUSH(int_to_value(a.integer % b.integer));
@@ -565,6 +580,7 @@ OP_0F: {
     switch(v.type) {
         case MSREST_INT: { 
             if (__builtin_expect(v.integer == INT64_MIN, 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'negate' got integer overflow\n");
             }
             result = int_to_value(-v.integer); 
@@ -572,8 +588,10 @@ OP_0F: {
         case MSREST_FLOAT: { 
             result = float_to_value(-v.floating); 
             break; }
-        default: 
+        default: {
+            vm->ip = ip - 9;
             msrest_panic("Type error: 'negate' expects INT/FLOAT\n");
+        }
     }
     LPUSH(result);
 
@@ -600,6 +618,7 @@ OP_10: {
             int64_t new;
 
             if (__builtin_expect(__builtin_add_overflow(old, (int64_t)1, &new), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'increment' got integer overflow\n");
             }
             v->integer = new;
@@ -611,13 +630,16 @@ OP_10: {
             double next = old + 1.0;
 
             if (__builtin_expect(!isfinite(next), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'increment' got non-finite float\n");
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
         }
-        default:
-            msrest_panic("Type error: cannot increment %s, expected INTEGER or FLOAT\n", type_name(v->type));
+        default: {
+                vm->ip = ip - 9;
+                msrest_panic("Type error: cannot increment %s, expected INTEGER or FLOAT\n", type_name(v->type));
+            }
     }
 
     LPUSH(result);
@@ -644,6 +666,7 @@ OP_11: {
             int64_t old = v->integer;
             int64_t new;
             if (__builtin_expect(__builtin_sub_overflow(old, (int64_t)1, &new), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'decrement' got integer overflow\n");
             }
             v->integer = new;
@@ -655,13 +678,16 @@ OP_11: {
             double next = old - 1.0;
 
             if (__builtin_expect(!isfinite(next), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'decrement' got non-finite float\n");
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
         }
-        default:
-            msrest_panic("Type error: cannot decrement %s, expected INTEGER or FLOAT\n", type_name(v->type));
+        default: {
+                vm->ip = ip - 9;
+                msrest_panic("Type error: cannot decrement %s, expected INTEGER or FLOAT\n", type_name(v->type));
+            }
     }
 
     LPUSH(result);
@@ -684,6 +710,7 @@ OP_12: {  // INC_LOCAL <slot> <is_post>
             int64_t old = v->integer;
             int64_t new;
             if (__builtin_expect(__builtin_add_overflow(old, (int64_t)1, &new), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'increment' got integer overflow\n");
             }
             v->integer = new;
@@ -695,13 +722,16 @@ OP_12: {  // INC_LOCAL <slot> <is_post>
             double next = old + 1.0;
 
             if (__builtin_expect(!isfinite(next), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'increment' got non-finite float\n");
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
         }
-        default:
-            msrest_panic("Type error: cannot increment %s, expected INTEGER or FLOAT\n", type_name(v->type));
+        default: {
+                vm->ip = ip - 9;
+                msrest_panic("Type error: cannot increment %s, expected INTEGER or FLOAT\n", type_name(v->type));
+            }
     }
     LPUSH(result);
     FETCH(); NEXT();
@@ -720,6 +750,7 @@ OP_13: {
             int64_t old = v->integer;
             int64_t new;
             if (__builtin_expect(__builtin_sub_overflow(old, (int64_t)1, &new), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'decrement' got integer overflow\n");
             }
             v->integer = new;
@@ -731,13 +762,16 @@ OP_13: {
             double next = old - 1.0;
 
             if (__builtin_expect(!isfinite(next), 0)) {
+                vm->ip = ip - 9;
                 msrest_panic("Overflow error: 'decrement' got non-finite float\n");
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
         }
-        default:
-            msrest_panic("Type error: cannot decrement %s, expected INTEGER or FLOAT\n", type_name(v->type));
+        default: {
+                vm->ip = ip - 9;
+                msrest_panic("Type error: cannot decrement %s, expected INTEGER or FLOAT\n", type_name(v->type));
+            }
     }
 
     LPUSH(result);
@@ -759,6 +793,7 @@ OP_14: {
     Value a = LPOP();
 
     if (__builtin_expect(!IS_NUMBER(a) || !IS_NUMBER(b), 0)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'less' expected FLOAT or INTEGER types, got unsupported type %s and %s\n", imm1, imm2);
@@ -783,6 +818,7 @@ OP_15: {
     Value b = LPOP();
     Value a = LPOP();
     if (__builtin_expect(!IS_NUMBER(a) || !IS_NUMBER(b), 0)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'greater' expected FLOAT or INTEGER types, got unsupported type %s and %s\n", imm1, imm2);
@@ -844,6 +880,7 @@ OP_16: {
                 }
                 
             default: {
+                vm->ip = ip - 9;
                 const char* imm1 = type_name(a.type);
                 const char* imm2 = type_name(b.type);
                 msrest_panic("Type error: 'not equal' got unsupported type %s and %s\n", imm1, imm2);
@@ -907,6 +944,7 @@ OP_17: {
             }
 
             default: {
+                vm->ip = ip - 9;
                 const char* imm1 = type_name(a.type);
                 const char* imm2 = type_name(b.type);
                 msrest_panic("Type error: 'not equal' got unsupported type %s and %s\n", imm1, imm2);
@@ -933,6 +971,7 @@ OP_18: {
     Value a = LPOP();
 
     if(__builtin_expect(!IS_NUMBER(a) || !IS_NUMBER(b), 0)){
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'less or equal' expected FLOAT or INTEGER types, got %s and %s\n", imm1, imm2);
@@ -957,6 +996,7 @@ OP_19: {
     Value a = LPOP();
 
     if(__builtin_expect(!IS_NUMBER(a) || !IS_NUMBER(b), 0)) {
+        vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
         const char* imm2 = type_name(b.type);
         msrest_panic("Type error: 'Greater or equal' expected FLOAT or INTEGER types, got %s and %s\n", imm1, imm2);
@@ -1040,8 +1080,10 @@ OP_1C: {
 
     Value v = LPOP();
 
-    if (__builtin_expect(v.type != MSREST_BOOL, 0)) 
+    if (__builtin_expect(v.type != MSREST_BOOL, 0)) {        
+        vm->ip = ip - 9;
         msrest_panic("Type error: 'NOT' expected BOOL type, got %s\n", type_name(v.type));
+    }
     Value result = bool_to_value(!value_to_bool(v));
     LPUSH(result);
 
@@ -1116,6 +1158,7 @@ OP_2A: {
 
     if (len == 0 && feof(stdin)) {
         free(buf);
+        vm->ip = ip - 9;
         msrest_panic("Input error: failed to read from stdin\n");
     }
 
@@ -1281,12 +1324,15 @@ OP_38: {
     uint32_t argc = ins.arg1;
     Value fnv = LPOP();
 
-    if (fnv.type != MSREST_FUNCREF) 
+    if (fnv.type != MSREST_FUNCREF) {
+        vm->ip = ip - 9;
         msrest_panic("Type error: 'indirect call' expected a function type, got %s\n", type_name(fnv.type));
+    }
     
-    if (fnv.fnref.arity != argc) 
+    if (fnv.fnref.arity != argc) {   
+        vm->ip = ip - 9;     
         msrest_panic("'indirect call' expected %u args, got %u\n", fnv.fnref.arity, argc);
-
+}
 
     uint32_t target = fnv.fnref.addr;
     int num = sp - argc;
@@ -1314,31 +1360,45 @@ OP_3B: {
     Value array = LPOP();
     if(array.type == MSREST_INT_ARRAY){
         IntArray *arr = array.int_array;
-        if(arr->size == 0) msrest_panic("Access violation error: Pop from empty INT ARRAY\n");
+        if(arr->size == 0) {
+            vm->ip = ip - 9;
+            msrest_panic("Access violation error: Pop from empty INT ARRAY\n");
+        }
         int64_t value = arr->values[--arr->size];
         LPUSH(int_to_value(value));
     }
     else if(array.type == MSREST_ARRAY){
         Array *arr = array.array;
-        if(arr->size == 0) msrest_panic("Access violation error: Pop from empty ARRAY\n");
+        if(arr->size == 0) {
+            vm->ip = ip - 9;
+            msrest_panic("Access violation error: Pop from empty ARRAY\n");
+        }
         Value value = arr->values[--arr->size];
         LPUSH(value);
     }
     else if(array.type == MSREST_BOOL_ARRAY) {
         BoolArray *arr = array.bool_array;
-        if(arr->size == 0) msrest_panic("Access violation error: Pop from empty BOOL ARRAY\n");
+        if(arr->size == 0) {
+            vm->ip = ip - 9;
+            msrest_panic("Access violation error: Pop from empty BOOL ARRAY\n");
+        }
         uint8_t value = arr->values[--arr->size];
         LPUSH(bool_to_value(value));
     }
     else if(array.type == MSREST_FLOAT_ARRAY) {
         FloatArray *arr = array.float_array;
-        if(arr->size == 0) msrest_panic("Access violation error: Pop from empty FLOAT ARRAY\n");
+        if(arr->size == 0) {
+            vm->ip = ip - 9;
+            msrest_panic("Access violation error: Pop from empty FLOAT ARRAY\n");
+        }
         double value = arr->values[--arr->size];
         LPUSH(float_to_value(value));
     }
 
-    else msrest_panic("Type error: 'array pop' expected ARRAY, got %s\n", type_name(array.type));
-
+    else {
+        vm->ip = ip - 9;
+        msrest_panic("Type error: 'array pop' expected ARRAY, got %s\n", type_name(array.type));
+    }
     #if _PROFILE
     PROF_END();
     #endif
@@ -1410,11 +1470,14 @@ OP_3D: {
             break;
         }
 
-        case MSREST_STRING:
+        case MSREST_STRING: {
+            vm->ip = ip - 9;
             msrest_panic("Access violation error: Cannot mutate element in string\n");
+        }
 
         case MSREST_DICT: {
             if (key.type != MSREST_STRING) {
+                vm->ip = ip - 9;
                 msrest_panic("'CONT_SET' on DICT expects STRING key, got %s\n",
                              type_name(key.type));
             }
@@ -1422,9 +1485,10 @@ OP_3D: {
             break;
         }
 
-        default:
-            msrest_panic("Type error: 'set element' expected ARRAY or DICT, got %s\n",
-                         type_name(cont.type));
+        default: {
+                vm->ip = ip - 9;
+                msrest_panic("Type error: 'set element' expected ARRAY or DICT, got %s\n",
+                         type_name(cont.type));}
     }
 
     #if _PROFILE
@@ -1467,10 +1531,10 @@ OP_3E: {  // CONT_GET
             String *str = cont.string;
 
             if (index < 0 || (uint64_t)index >= str->chars) {
+                vm->ip = ip - 9;
                 msrest_panic(
                     "Access violation error: String index out of bounds: "
-                    "%lld (string length=%u)\n",
-                    (long long)index, str->chars);
+                    "%lld (string length=%u)\n", (long long)index, str->chars);
             }
 
             size_t pos = 0;
@@ -1504,6 +1568,7 @@ OP_3E: {  // CONT_GET
 
         case MSREST_DICT: {
             if (key.type != MSREST_STRING) {
+                vm->ip = ip - 9;
                 msrest_panic("Type error: 'CONT_GET' on DICT expects STRING key, got %s\n",
                              type_name(key.type));
             }
@@ -1511,9 +1576,11 @@ OP_3E: {  // CONT_GET
             break;
         }
 
-        default:
+        default: {         
+            vm->ip = ip - 9;   
             msrest_panic("Access violation error: %s object is not indexable\n",
                          type_name(cont.type));
+                        }
     }
 
     LPUSH(result);
@@ -1540,7 +1607,10 @@ OP_3F: {
         case MSREST_FLOAT_ARRAY: result = int_to_value(v.float_array->size); break;
         case MSREST_BOOL_ARRAY:  result = int_to_value(v.bool_array->size); break;
         case MSREST_DICT: result = int_to_value(v.dictionary->size); break;
-        default: msrest_panic("Type error: len() expected ARRAY or STRING, got %s\n", type_name(v.type));
+        default: {
+            vm->ip = ip - 9;
+            msrest_panic("Type error: len() expected ARRAY or STRING, got %s\n", type_name(v.type));
+        }
     }
     LPUSH(result);
 
@@ -1562,6 +1632,7 @@ OP_43: {
     uint32_t count = ins.arg1;
 
     if (__builtin_expect(count == 0 || count > 256, 0)) {
+        vm->ip = ip - 9;
         msrest_panic("ARRAY_PUSH_MANY: count %u out of range [1..256]\n", count);
     }
 
@@ -1626,8 +1697,11 @@ OP_43: {
                 arr->values[arr->size++] = value_to_bool(values[i]);}
             break;
         }
-        default:
-            msrest_panic("Type error: 'array push' expects ARRAY type, got %s\n", type_name(arr_val.type));}
+        default: {
+            vm->ip = ip - 9;
+            msrest_panic("Type error: 'array push' expects ARRAY type, got %s\n", type_name(arr_val.type));
+        }
+    }
     LPUSH(arr_val);
 
     #if _PROFILE
@@ -1751,8 +1825,10 @@ OP_58: {
     #endif
 
     Value a = LPOP(); // значение для сдвига.
-    if (a.type != MSREST_INT) 
+    if (a.type != MSREST_INT) {
+        vm->ip = ip - 9;
         msrest_panic("Type error: SHR expects INTEGER type, got %s type\n", type_name(a.type));
+    }
     uint32_t shift = (uint32_t)ins.arg1 & 63u;
     Value result = int_to_value(a.integer >> shift);
     LPUSH(result);
@@ -1772,8 +1848,10 @@ OP_59: {
     #endif
 
     Value a = LPOP();
-    if (a.type != MSREST_INT)
+    if (a.type != MSREST_INT) {
+        vm->ip = ip - 9;
         msrest_panic("Type error: SHL expects INTEGER type, got %s type\n", type_name(a.type));
+    }
     
     uint32_t sh = (uint32_t)ins.arg1 & 63u;
     Value result = int_to_value((int64_t)((uint64_t)a.integer << sh));
@@ -1794,11 +1872,14 @@ OP_60: {
     #endif
     
     NativeFunc fn = native_table[ins.arg1];
-    if (!fn) 
+    if (!fn) {
+        vm->ip = ip - 9;
         msrest_panic("Access violation error: Native function %d not loaded\n", ins.arg1);
+    }
 
     int argc = ins.arg2;
     if (__builtin_expect(argc < 0 || argc > 32, 0)) {
+        vm->ip = ip - 9;
         msrest_panic("NATIVE_FUNC: argc %d out of range [0..32]\n", argc);
     }
 
@@ -1876,8 +1957,10 @@ OP_68: {
                         case MSREST_NULL:
                             found = 1;
                             break;
-                        default:
+                        default: {
+                            vm->ip = ip - 9;
                             msrest_panic("Cannot use 'has' operator with %s type\n", type_name(v.type));
+                        }
                     }
                 }
                 if (found) break;
@@ -1887,14 +1970,17 @@ OP_68: {
 
         case MSREST_DICT: {
             if (obj.type != MSREST_STRING) {
+                vm->ip = ip - 9;
                 msrest_panic("'has' on dict expects STRING key, got %s", type_name(obj.type));
             }
             found = dict_has(cont, obj);
             break;
         }
 
-        default:
+        default: {
+            vm->ip = ip - 9;
             msrest_panic("Cannot use 'has' with %s type\n", type_name(cont.type));
+        }
     }
 
     LPUSH(bool_to_value(found));
@@ -2141,7 +2227,10 @@ OP_7A: {
         case DICT_KEYS: res = dict_keys(v); break;
         case DICT_PAIRS: res = dict_pairs(v); break;
         case DICT_VALUES: res = dict_values(v); break;
-        default: msrest_panic("Unknown static method id: %u\n", method);
+        default: {
+            vm->ip = ip - 9;
+            msrest_panic("Unknown static method id: %u\n", method);
+        }
     }
     LPUSH(res);
     #if _PROFILE
@@ -2150,57 +2239,6 @@ OP_7A: {
 
     FETCH();
     NEXT(); 
-}
-
-OP_82: {
-    #if _PROFILE
-    PROF_START(); // LLEQ
-    #endif
-
-    Value a = vm->variables[ins.arg1];
-    Value b = vm->variables[ins.arg2];
-    LPUSH(bool_to_value(a.integer == b.integer));
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
-}
-
-OP_83: {
-    #if _PROFILE
-    PROF_START(); // LLLT
-    #endif
-
-    Value a = vm->variables[ins.arg1];
-    Value b = vm->variables[ins.arg2];
-    LPUSH(bool_to_value(a.integer < b.integer));
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
-}
-
-OP_85: {
-    #if _PROFILE
-    PROF_START(); // LLLE
-    #endif
-
-    Value a = vm->variables[ins.arg1];
-    Value b = vm->variables[ins.arg2];
-    LPUSH(bool_to_value(a.integer <= b.integer));
-
-    #if _PROFILE
-    PROF_END();
-    #endif
-
-    FETCH();
-    NEXT();
 }
 
 

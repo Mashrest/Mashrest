@@ -10,7 +10,11 @@
 
 
 /* Global ptr */
+
 VM *vm = NULL;
+/* Указатель на текущую программу нужен для вывода координат в msrest_panic. */
+Program *g_prog = NULL;
+
 uint64_t opcodeTime[256] = {0};
 uint64_t totalInstructions = 0;
 uint64_t opcode_stats[256] = {0};
@@ -144,6 +148,29 @@ VM* vm_create(void) {
     return vm;
 }
 
+/* Ищет диапазон, покрывающий ip (абсолютное байтовое смещение в code).
+   Возвращает NULL, если ничего не нашли или таблицы нет.
+   ip конвертируется в индекс инструкции: (ip - code_start) / 9. */
+static const RangeEntry* find_range(uint32_t ip)
+{
+    if (!g_prog || !g_prog->ranges || g_prog->range_count == 0)
+        return NULL;
+    if (ip < (uint32_t)g_prog->code_start)
+        return NULL;
+
+    uint32_t idx = (ip - (uint32_t)g_prog->code_start) / 9;
+
+    int lo = 0, hi = (int)g_prog->range_count - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        const RangeEntry *e = &g_prog->ranges[mid];
+        if (idx < e->start_index)      hi = mid - 1;
+        else if (idx >= e->end_index)  lo = mid + 1;
+        else return e;
+    }
+    return NULL;
+}
+
 
 void msrest_panic(const char *fmt, ...)
 {
@@ -155,6 +182,19 @@ void msrest_panic(const char *fmt, ...)
     fprintf(stderr, "\n");
 
     va_end(args);
+
+    /* если знаем ip - показываем координаты в исходнике. */
+    if (vm && g_prog) {
+        const RangeEntry *e = find_range((uint32_t)vm->ip);
+        if (e) {
+            fprintf(stderr, "  at line %u, col %u-%u\n",
+                    (unsigned)e->line + 1,
+                    (unsigned)e->col,
+                    (unsigned)e->end_col);
+        } else {
+            fprintf(stderr, "  at ip = %d (no debug info)\n", vm->ip);
+        }
+    }
 
     exit(EXIT_FAILURE);
 }
@@ -1010,7 +1050,7 @@ char* value_to_string(Value v) {
     }
     
     char* result = NULL;
-    char buffer[64];
+    char buffer[128];
     
     
     switch(v.type) {
@@ -1315,6 +1355,7 @@ Program* load_program(const char *filename) {
     int header_start = find_marker(code, file_size, 0xEA, 0);
     int import_start = find_marker(code, file_size, 0xED, 0);
     int pool_start   = find_marker(code, file_size, 0xEC, 0);
+    int range_start  = find_marker(code, file_size, 0xE9, 0);
     int code_start   = find_marker(code, file_size, 0xEB, 0);
     int code_end     = find_marker(code, file_size, 0xEF, 0);
 
@@ -1373,8 +1414,33 @@ Program* load_program(const char *filename) {
     prog->constant_pool = constant_pool;
     prog->constant_count = constant_count;
 
+    /* таблица диапазонов — опциональная секция. */
+    prog->ranges = NULL;
+    prog->range_count = 0;
+
+    if (range_start != -1) {
+        int rpos = range_start;
+        uint32_t rc = (uint32_t)read_int(code + rpos);
+        rpos += 4;
+
+        prog->range_count = rc;
+        prog->ranges = safe_malloc(sizeof(RangeEntry) * rc);
+
+        for (uint32_t i = 0; i < rc; i++) {
+            /* формат записи: uint32 start, uint32 end,
+                             uint16 line, uint16 col, uint16 end_col, uint16 pad. */
+            prog->ranges[i].start_index = (uint32_t)read_int(code + rpos); rpos += 4;
+            prog->ranges[i].end_index   = (uint32_t)read_int(code + rpos); rpos += 4;
+            prog->ranges[i].line     = read_short(code + rpos); rpos += 2;
+            prog->ranges[i].col      = read_short(code + rpos); rpos += 2;
+            prog->ranges[i].end_col  = read_short(code + rpos); rpos += 2;
+            prog->ranges[i]._pad     = read_short(code + rpos); rpos += 2;
+        }
+    }
+
     return prog;
 }
+
 
 
 /*Cleans constant pool and code sections*/
@@ -1382,7 +1448,10 @@ void free_program(Program *prog) {
     if (!prog) return;
     if (prog->constant_pool) {
         free(prog->constant_pool);}
-    
+
+    if (prog->ranges) {
+        free(prog->ranges);}
+
     /*Free the code*/
     if (prog->code) {
         free(prog->code);}
@@ -1411,7 +1480,6 @@ int Mvalidate_program_opcodes(Program *prog)
         0x58, 0x59,
         0x60, 0x66, 0x68,
         0x70, 0x76, 0x77, 0x79, 0x7A,
-        0x82, 0x83, 0x85,
         0xA0, 0xA1,
         0xBB, 0xEE
     };

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define STRINGBUILDER_TYPE "StringBuilder"
+#define LIB_NAME "STRING_BUILDER"
 
 /* Внутренние структуры */
 
@@ -64,7 +65,7 @@ static void ensure_capacity(MsrestAPI *api, StringBuilderData *sb, size_t needed
     
     char *new_buffer = realloc(sb->buffer, new_capacity);
     if (!new_buffer) {
-        api->msrest_panic("StringBuilder: out of memory");
+        api->msrest_panic("[" LIB_NAME "]: out of memory");
     }
     
     sb->buffer = new_buffer;
@@ -85,6 +86,12 @@ static void append_string(MsrestAPI *api, StringBuilderData *sb, const char *str
     sb->chars += count_utf8_chars((const uint8_t*)str, len);
 }
 
+static void* safe_malloc(MsrestAPI *api, size_t size) {
+    void* p = malloc(size);
+    if (!p) api->msrest_panic("[" LIB_NAME "] memory allocation failed");
+    return p;
+}
+
 /* Экспортируемые функции */
 
 /* 
@@ -96,16 +103,13 @@ static void append_string(MsrestAPI *api, StringBuilderData *sb, const char *str
 */
 
 EXPORT Value new(MsrestAPI *api, Value *args, int argc) {
-    // проверяем: 0 или 1 аргумент
-    if (argc > 1) {
-        api->msrest_panic("StringBuilder::new() expects 0 or 1 argument");
-    }
+    api->check_argc(argc, 1);
     
     size_t initial_capacity = 16;
     if (argc == 1) {
         intptr_t cap = api->value_to_int(args[0]);
         if (cap < 0) {
-            api->msrest_panic("StringBuilder::new(): capacity must be non-negative");
+            api->msrest_panic("[" LIB_NAME "] new(): capacity must be non-negative");
         }
         if (cap == 0) {
             initial_capacity = 16;
@@ -114,10 +118,8 @@ EXPORT Value new(MsrestAPI *api, Value *args, int argc) {
         }
     }
     
-    StringBuilderData *sb = malloc(sizeof(StringBuilderData));
-    if (!sb) {
-        api->msrest_panic("StringBuilder::new(): out of memory");
-    }
+    StringBuilderData *sb = safe_malloc(api, sizeof(StringBuilderData));
+
     
     sb->capacity = initial_capacity;
     sb->bytes = 0; 
@@ -173,7 +175,7 @@ EXPORT Value append(MsrestAPI *api, Value *args, int argc) {
         
         case MSREST_BOOL: {
             uint8_t b = api->value_to_bool(value);
-            append_string(api, sb, b ? "true" : "false");
+            append_string(api, sb, b ? "<1>" : "<0>");
             break;
         }
         
@@ -189,7 +191,7 @@ EXPORT Value append(MsrestAPI *api, Value *args, int argc) {
                 append_string(api, sb, str);
                 free(str);
             } else {
-                api->msrest_panic("StringBuilder::append(): unsupported type");
+                api->msrest_panic("[" LIB_NAME "] append(): unsupported type %s", type_names[type]);
             }
             break;
         }
@@ -218,7 +220,7 @@ EXPORT Value append_char(MsrestAPI *api, Value *args, int argc) {
         // интерпретируем как кодпоинт Unicode (а кто меня осудит?).
         intptr_t codepoint = api->value_to_int(args[1]);
         if (codepoint < 0 || codepoint > 0x10FFFF) {
-            api->msrest_panic("StringBuilder::append_char(): invalid codepoint");
+            api->msrest_panic("[" LIB_NAME "] append_char(): invalid codepoint");
         }
         
         // конвертируем кодпоинт в UTF-8.
@@ -262,7 +264,7 @@ EXPORT Value append_char(MsrestAPI *api, Value *args, int argc) {
         
         char_str = str;
     } else {
-        api->msrest_panic("StringBuilder::append_char(): expected integer or string");
+        api->msrest_panic("[" LIB_NAME "] append_char(): expected integer or string, got %s", type_names[type]);
     }
     
     // добавляем символ.
@@ -376,10 +378,7 @@ EXPORT Value reset(MsrestAPI *api, Value *args, int argc) {
     sb->capacity = 16;
     sb->bytes = 0; 
     sb->chars = 0;
-    sb->buffer = malloc(16);
-    if (!sb->buffer) {
-        api->msrest_panic("StringBuilder::reset(): out of memory");
-    }
+    sb->buffer = safe_malloc(api, 16);
     sb->buffer[0] = '\0';
     
     return api->null_to_value();
@@ -400,10 +399,7 @@ EXPORT Value reverse(MsrestAPI *api, Value *args, int argc) {
     if (sb->chars <= 1) return args[0];  // 0 или 1 символ - ничего не делаем.
     
     // выделяем временный буфер для перевернутой строки.
-    char *new_buffer = malloc(sb->bytes + 1);
-    if (!new_buffer) {
-        api->msrest_panic("StringBuilder::reverse(): out of memory");
-    }
+    char *new_buffer = safe_malloc(api, sb->bytes + 1);
     
     // проходим по символам справа налево.
     size_t write_pos = 0;
@@ -453,86 +449,79 @@ EXPORT Value reverse(MsrestAPI *api, Value *args, int argc) {
      end: (опционально) конечный индекс (не включительно)
    Возвращает: новый StringBuilder
 */
-EXPORT Value substring(MsrestAPI *api, Value *args, int argc) {
-    if (argc < 2 || argc > 3) {
-        api->msrest_panic("StringBuilder::substring() expects 2 or 3 arguments");
-    }
-    
+EXPORT Value msrest_substring(MsrestAPI *api, Value *args, int argc)
+{
+    api->check_argc(argc, 3);
+
     StringBuilderData *sb = require_stringbuilder(api, args[0]);
-    
-    intptr_t start_int = api->value_to_int(args[1]);
-    if (start_int < 0 || start_int > (intptr_t)sb->chars) {
-        api->msrest_panic("StringBuilder::substring(): start out of range");
+
+    intptr_t start = api->value_to_int(args[1]);
+    if (start < 0 || start > (intptr_t)sb->chars)
+        api->msrest_panic("[" LIB_NAME "] substring(): start out of range\n");
+
+    intptr_t end = api->value_to_int(args[2]);
+    if (end == -1) {
+        end = (intptr_t)sb->chars;
+    } else if (end < 0 || end > (intptr_t)sb->chars) {
+        api->msrest_panic("[" LIB_NAME "] substring(): end out of range\n");
     }
-    size_t start_char = (size_t)start_int;
-    
-    intptr_t end_int = (intptr_t)sb->chars;   // дефолт - до конца
-    if (argc == 3) {
-        end_int = api->value_to_int(args[2]);
-    }
-    size_t end_char = (end_int < 0) ? sb->chars : (size_t)end_int;
-    
-    if (end_char > sb->chars || start_char > end_char) {
-        api->msrest_panic("StringBuilder::substring(): invalid indices");
-    }
-    
+
+    if (start > end)
+        api->msrest_panic("[" LIB_NAME "] substring(): start > end\n");
+
+    size_t start_char = (size_t)start;
+    size_t end_char   = (size_t)end;
+
     size_t start_byte = 0;
-    size_t end_byte = 0;
+    size_t end_byte   = 0;
     size_t current_char = 0;
     const uint8_t *data = (const uint8_t*)sb->buffer;
     size_t pos = 0;
-    
-    // ищем позицию start_char в байтах.
+
     while (pos < sb->bytes && current_char < start_char) {
         uint8_t c = data[pos];
-        if ((c & 0x80) == 0) pos += 1;
+        if ((c & 0x80) == 0)         pos += 1;
         else if ((c & 0xE0) == 0xC0) pos += 2;
         else if ((c & 0xF0) == 0xE0) pos += 3;
         else if ((c & 0xF8) == 0xF0) pos += 4;
-        else pos += 1;
+        else                         pos += 1;
         current_char++;
     }
     start_byte = pos;
-    
-    // ищем позицию end_char в байтах.
+
     while (pos < sb->bytes && current_char < end_char) {
         uint8_t c = data[pos];
-        if ((c & 0x80) == 0) pos += 1;
+        if ((c & 0x80) == 0)         pos += 1;
         else if ((c & 0xE0) == 0xC0) pos += 2;
         else if ((c & 0xF0) == 0xE0) pos += 3;
         else if ((c & 0xF8) == 0xF0) pos += 4;
-        else pos += 1;
+        else                         pos += 1;
         current_char++;
     }
     end_byte = pos;
-    
+
     size_t byte_len = end_byte - start_byte;
     size_t char_len = end_char - start_char;
-    
-    // создаем новый StringBuilder.
-    StringBuilderData *new_sb = malloc(sizeof(StringBuilderData));
-    if (!new_sb) {
-        api->msrest_panic("StringBuilder::substring(): out of memory");
-    }
-    
+
+    StringBuilderData *new_sb = safe_malloc(api, sizeof(StringBuilderData));
+
     size_t cap = byte_len + 1;
     if (cap < 16) cap = 16;
-    
+
     new_sb->capacity = cap;
-    new_sb->bytes = byte_len;
-    new_sb->chars = char_len;
-    new_sb->buffer = malloc(cap);
+    new_sb->bytes    = byte_len;
+    new_sb->chars    = char_len;
+    new_sb->buffer   = malloc(cap);
     if (!new_sb->buffer) {
         free(new_sb);
-        api->msrest_panic("StringBuilder::substring(): out of memory");
+        api->msrest_panic("[" LIB_NAME "] substring(): out of memory\n");
     }
-    
-    memcpy(new_sb->buffer, sb->buffer + start_byte, byte_len);
+
+    memcpy(new_sb->buffer, (const char*)sb->buffer + start_byte, byte_len);
     new_sb->buffer[byte_len] = '\0';
-    
+
     return api->native_new(STRINGBUILDER_TYPE, new_sb, destroy_stringbuilder);
 }
-
 
 
 /*
