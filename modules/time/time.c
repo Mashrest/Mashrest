@@ -3,14 +3,19 @@
 #include <time.h>
 #include <stdlib.h>
 
+
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 #ifdef _WIN32
     #include <windows.h>
 #else
     #include <unistd.h>
 #endif
 
-// Функция: time.now()
-// Возвращает текущее время в миллисекундах
+// возвращает текущее время в миллисекундах.
 EXPORT Value time_now(MsrestAPI *api, Value *args, int argc)
 {
     (void)args;
@@ -25,12 +30,11 @@ EXPORT Value time_now(MsrestAPI *api, Value *args, int argc)
     return api->int_to_value((intptr_t)ms);
 }
 
-// Функция: time.sleep(ms)
-// Приостанавливает выполнение на ms миллисекунд
+// приостанавливает выполнение на ms миллисекунд.
 EXPORT Value time_sleep(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_INT, args[0].type);
+    api->lib_check_type(MSREST_INT, args[0].type, "TIME", "time_sleep");
     
     uint64_t ms = (uint64_t)api->value_to_int(args[0]);
     

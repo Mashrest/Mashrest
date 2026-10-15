@@ -14,12 +14,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
-#include <stdarg.h>
+
 #include <sys/stat.h>
-#include <direct.h>
-#include <windows.h>
 #include <stdarg.h>
 
+#include "platform.h"
 #include "getters_support.h"
 #include "types.h"
 
@@ -228,14 +227,6 @@ static inline int32_t read_int(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
-static inline void check_type(uint8_t required, uint8_t got)
-{
-    if (required != got) {
-        msrest_panic("Type mismatch! Required: %s, Got: %s\n", 
-               type_names[required], 
-               type_names[got]);}
-}
-
 
 static inline uint8_t soft_check_type(uint8_t required, uint8_t got)
 {
@@ -408,6 +399,7 @@ static inline void lib_check_type(uint8_t required, uint8_t got, const char *lib
     }
 }
 
+_Noreturn void vm_shutdown(int code);
 
 /* Array functions */
 Value array_new(uint32_t capacity);

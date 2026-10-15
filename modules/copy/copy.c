@@ -1,6 +1,12 @@
 #include "API/msrest_api.h"
 #define LIB_NAME "COPY"
 
+
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 EXPORT Value up_copy(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);

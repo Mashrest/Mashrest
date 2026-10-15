@@ -11,6 +11,9 @@
 
 #define LIB_NAME "STRINGS"
 
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
 
 static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got, const char *funcname)
 {

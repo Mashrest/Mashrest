@@ -6,6 +6,11 @@
 
 
 
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 typedef struct
 {
     int value;

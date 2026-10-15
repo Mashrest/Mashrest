@@ -9,6 +9,10 @@
 #include <stdlib.h>
 
 
+/* Версия ABI. Библиотеки и VM
+   должны иметь одинаковую версию, иначе VM откажется грузить DLL. */
+#define MSREST_API_ABI_VERSION 2
+
 enum {
     MSREST_NULL = 0,
     MSREST_INT,
@@ -99,6 +103,7 @@ struct Value {
 
 /* Mashrest API export functions declaration */
 typedef struct {
+    uint32_t abi_version;
 
     Value (*string_to_value)(const char *);
     Value (*int_to_value)(intptr_t);
@@ -117,7 +122,7 @@ typedef struct {
 
 
     uint32_t (*array_size)(Value);
-    Value (*array_get)(Value, int);
+    Value (*array_get)(Value, uint32_t);
     void (*array_set)(Value, uint32_t, Value);
     void (*array_push)(Value, Value);
     Value (*array_pop)(Value);
@@ -137,8 +142,6 @@ typedef struct {
     Value (*native_new)(const char *, void *, void (*)(void *));
     void *(*native_payload)(Value, const char *);
 
-
-    void (*check_type)(uint8_t required, uint8_t got);
     void (*check_argc)(const char *func_name, uint16_t argc, uint16_t required);
     uint8_t (*soft_check_type)(uint8_t required, uint8_t got);
     uint8_t (*value_type)(Value);

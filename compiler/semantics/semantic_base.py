@@ -208,46 +208,74 @@ class SemanticBase:
 
     
     def _check_type_compatibility(self, actual_type, expected_type):
-        # проверяет совместимость типов.
-        if isinstance(expected_type, list):
-            for exp in expected_type:
-                if self._check_type_compatibility(actual_type, exp):
-                    return True
-            return False
-        
-        if "ANY" in actual_type or expected_type == "ANY":
-            return True
-        
-        # проверка массивов.
-        if expected_type == "ARRAY":
-            # ARRAY совместим с любым массивом.
-            return any(t in actual_type for t in ["ARRAY", "BOOLARRAY", "INTARRAY", "FLOATARRAY"])
-
-        if expected_type in ["BOOLARRAY", "INTARRAY", "FLOATARRAY"]:
-            return expected_type in actual_type
-        if expected_type == "INTEGER":
-            return "NUMBER" in actual_type
-        if expected_type == "FLOAT":
-            return "FLOAT" in actual_type
-        return expected_type in actual_type or expected_type == "ANY"
-
-    def _create_default_node(self, value):
-        # создает узел для значения по умолчанию.
-        # TODO убрать этот кавардак с elif.
-        if isinstance(value, int):
-            return {"type": "NUMBER", "value": value, "line": 0, "col": 0}
-        elif isinstance(value, float):
-            return {"type": "FLOAT", "value": value, "line": 0, "col": 0}
-        elif isinstance(value, str):
-            return {"type": "STRING", "value": value, "line": 0, "col": 0}
-        elif value is None:
-            return {"type": "NULL", "value": None, "line": 0, "col": 0}
-        elif isinstance(value, list):
-            return {"type": "ARRAY", "value": value, "line": 0, "col": 0}
-        elif isinstance(value, bool):
-            return {"type": "BOOL", "value": value, "line": 0, "col": 0}
+        if isinstance(expected_type, str):
+            if expected_type == "ANY":
+                return True
+            expected_set = self._parse_type_string(expected_type)
+        elif isinstance(expected_type, (set, frozenset, list, tuple)):
+            expected_set = set()
+            for e in expected_type:
+                expected_set |= self._parse_type_string(e)
         else:
-            return {"type": "ANY", "value": value, "line": 0, "col": 0}
+            return False
+
+        if "ANY" in actual_type or "ANY" in expected_set:
+            return True
+        if "ERROR" in actual_type:
+            return True
+
+        for a in actual_type:
+            if a not in expected_set:
+                return False
+        return True
+
+    def _create_default_node(self, value, line=0, col=0):
+        # создает узел для значения по умолчанию.
+        # bool раньше int - True иначе уедет в NUMBER.
+        if isinstance(value, bool):
+            return {"type": "BOOL", "value": value, "line": line, "col": col}
+        if isinstance(value, int):
+            return {"type": "NUMBER", "value": value, "line": line, "col": col}
+        if isinstance(value, float):
+            return {"type": "FLOAT", "value": value, "line": line, "col": col}
+        if isinstance(value, str):
+            return {"type": "STRING", "value": value, "line": line, "col": col}
+        if value is None:
+            return {"type": "NULL", "value": None, "line": line, "col": col}
+
+        if isinstance(value, list):
+            items = []
+            for v in value:
+                item = self._create_default_node(v, line, col)
+                if item is None:
+                    return None
+                items.append(item)
+
+            kinds = {i["type"] for i in items}
+            if   kinds <= {"BOOL"}:            at = 'b'
+            elif kinds <= {"NUMBER"}:          at = 'i'
+            elif kinds <= {"NUMBER", "FLOAT"}: at = 'f'
+            else:                              at = 'a'
+
+            return {
+                "type": "ARRAY", "array_type": at, "items": items,
+                "line": line, "col": col,
+            }
+
+        if isinstance(value, dict):
+            items = []
+            for k, v in value.items():
+                kn = self._create_default_node(k, line, col)
+                vn = self._create_default_node(v, line, col)
+                if kn is None or vn is None:
+                    return None
+                items.append({"key": kn, "value": vn})
+            return {"type": "DICT", "items": items, "line": line, "col": col}
+
+        # что-то экзотическое. молчать нельзя, но и падать нечем, то вернём None.
+        # я не придумал ничего гениальнее.
+        self.error(f"Unsupported default value: {value!r}", {"line": line, "col": col})
+        return None
 
     def _get_note_for_id(self, node):
         # возвращает (note_node, note_kind) для ID-узла.

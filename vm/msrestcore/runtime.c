@@ -57,7 +57,6 @@ MsrestAPI msrest_api = {
     .string_bytes = string_bytes,
     .string_empty = string_empty,
     .array_index_check = array_index_check,
-    .check_type = check_type,
     .check_argc = msrest_check_argc_impl,
 
     .string_new = string_new,
@@ -258,7 +257,22 @@ void msrest_panic(const char *fmt, ...)
         }
     }
 
-    exit(EXIT_FAILURE);
+    vm_shutdown(EXIT_FAILURE);
+}
+
+_Noreturn void vm_shutdown(int code)
+{
+    if (vm) {
+        gc_collect();       
+        gc_free(&vm->gc);
+        vm_destroy(vm);
+    }
+
+    if (g_prog) {
+        free_program(g_prog);
+    }
+
+    exit(code);
 }
 
 

@@ -3,10 +3,6 @@
 
 #include "runtime.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 extern NativeFunc native_table[MAX_IMPORTS];
 
 void load_imports(Program *prog);

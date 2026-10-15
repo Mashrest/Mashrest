@@ -12,9 +12,9 @@ import json
 import os
 
 
-AST = False
-DEBUG = True
-DIS = False
+AST =True
+DEBUG = False
+DIS = True
 
 
 """COLORS = {

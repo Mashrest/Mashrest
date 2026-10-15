@@ -104,6 +104,8 @@
       "returns": "integer"
     },
 
+    
+
     "hex_to_decimal": {
       "description": {
         "en": "Converts a hex-string to decimal integer.",

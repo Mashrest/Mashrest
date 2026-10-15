@@ -74,35 +74,14 @@ class SemanticAnalysis(SemanticBase):
 
 
     def _get_builtin_return_type(self, builtin_data, args):
-        # определяет возвращаемый тип встроенной функции по аргументам
         overloads = builtin_data.get("overloads", [])
-        
-        # проверяем все перегрузки.
         for overload in overloads:
-            matched, error = self.match_arguments(overload, args)
-            if matched is not None:
-                # проверяем типы аргументов для этой перегрузки.
-                params = overload.get("args", [])
-                types_ok = True
-                
-                for param in params:
-                    if param["name"] in matched:
-                        arg_node = matched[param["name"]]
-                        arg_type = self.get_operand_type(arg_node)
-                        param_type = param.get("type", "any")
-                        
-                        if isinstance(param_type, str):
-                            param_type = param_type.upper()
-                        
-                        if not self._check_type_compatibility(arg_type, param_type):
-                            types_ok = False
-                            break
-                
-                if types_ok:
-                    # эта перегрузка подходит - берем ее тип возврата тогда.
-                    return self._parse_type_string(overload.get("returns", "any"))
-        
-        # не нашли - любой.
+            matched, _ = self.match_arguments(overload, args)
+            if matched is None:
+                continue
+            ok, _, _, _ = self._check_overload_types(overload, matched)
+            if ok:
+                return self._parse_type_string(overload.get("returns", "any"))
         return {"ANY"}
 
     def get_operand_type(self, node: dict):
@@ -1650,36 +1629,49 @@ class SemanticAnalysis(SemanticBase):
         # наверно.
         
         return matched, None
+
     
     def check_native_args(self, node, filedata, call):
         func_name = call["callee"]["value"]
         func = filedata["functions"][func_name]
         overloads = func.get("overloads", [func])
-        
+    
         for overload in overloads:
             matched, _ = self.match_arguments(overload, call["args"])
-            if matched is not None:
-                # нашли подходящую перегрузку.
-                ordered_args = []
-                for param in overload.get("args", []):
-                    if param["name"] in matched:
-                        ordered_args.append(matched[param["name"]])
-                    else:
-                        if "default" not in param:
-                            self.error(f"Optional parameter '{param['name']}' has no default value",
-                                call["callee"])
-                            return
-                        ordered_args.append(self._create_default_node(param["default"]))
-                
-                call["args"] = ordered_args
-                
-                # любимая рекурсия на проверку args.
-                for _, arg_node in enumerate(ordered_args):
-                    self.check(arg_node)
-                
+            if matched is None:
+                continue
+
+            ok, bad_arg, expected, actual = self._check_overload_types(overload, matched)
+            if not ok:
+                expected_str = self._format_type(expected)
+                self.error(
+                    f"Expected {expected_str}, got {self._format_type(actual)}",
+                    bad_arg)
                 return self._parse_type_string(overload.get("returns", "any"))
-        
-        # ни одна перегрузка не подошла - выводим подробную ошибку.
+
+            ordered_args = []
+            for param in overload.get("args", []):
+                if param["name"] in matched:
+                    ordered_args.append(matched[param["name"]])
+                else:
+                    if "default" not in param:
+                        self.error(
+                            f"Optional parameter '{param['name']}' has no default value", call["callee"])
+                        return
+
+                    default_node = self._create_default_node(param["default"])
+                    if default_node is None:
+                        self.error(
+                            f"Invalid default for parameter '{param['name']}'", call["callee"])
+                        return
+                    ordered_args.append(default_node)
+
+            call["args"] = ordered_args
+            for arg_node in ordered_args:
+                self.check(arg_node)
+
+            return self._parse_type_string(overload.get("returns", "any"))
+
         expected_msg = []
         for overload in overloads:
             params = []
@@ -1689,96 +1681,65 @@ class SemanticAnalysis(SemanticBase):
                 req = "required" if p.get("required", False) else "optional"
                 params.append(f"  |  {pname}: {ptype} ({req})")
             expected_msg.append("  | {\n" + "\n".join(params) + "\n  | }")
-        
+
         args_info = []
         for arg in call["args"]:
             if arg["type"] == "NAMED_ARG":
                 args_info.append(f"{arg['name']}={arg.get('value', '?')}")
             else:
                 value = arg.get("value")
-                if value is not None:
-                    args_info.append(str(value))
-                else:
-                    args_info.append(arg.get("type", "?"))
+                args_info.append(str(value) if value is not None else arg.get("type", "?"))
 
         argslen = len(call["args"])
         args_str = ', '.join(args_info)
         self.error(
             f"No matching overload for function '{func_name}'. "
-            f"Got {argslen} {"arguments" if argslen > 1 else "argument"}: {args_str}.\n"
-            f"  Expected one of:\n" + "\n".join(expected_msg), call["callee"])
+            f"Got {argslen} {'arguments' if argslen > 1 else 'argument'}: {args_str}.\n"
+            f"  Expected one of:\n" + "\n".join(expected_msg),
+            call["callee"])
 
 
     def check_integrated(self, node, data):
-        # проверяет вызов встроенной функции по всем перегрузкам.
         callee = node.get("callee")
         func_name = callee.get("value")
         args = node.get("args", [])
-        
         overloads = data.get("overloads", [])
-        
+
         for overload in overloads:
-            matched, error = self.match_arguments(overload, args)
+            matched, _ = self.match_arguments(overload, args)
             if matched is None:
-                continue  # структура не подошла - пробуем следующую.
-            
-            # проверяем типы для этой перегрузки.
-            params = overload.get("args", [])
-            types_ok = True
-            bad_arg = None
-            expected = None
-            
-            for param in params:
-                if param["name"] in matched:
-                    arg_node = matched[param["name"]]
-                    arg_type = self.get_operand_type(arg_node)
-                    param_type = param.get("type", "any")
-                    
-                    if isinstance(param_type, str):
-                        param_type = param_type.upper()
-                    
-                    if not self._check_type_compatibility(arg_type, param_type):
-                        types_ok = False
-                        bad_arg = arg_node
-                        expected = param_type
-                        break
-            
-            if not types_ok:
-                # типы не подошли - подчёркиваем проблемный аргумент.
-                if isinstance(expected, list):
-                    expected_str = ", ".join(expected)
-                else:
-                    expected_str = expected
-                
-                # если это именованный аргумент, подчёркиваем значение.
-                error_node = bad_arg
-                for arg in args:
-                    if arg.get("type") == "NAMED_ARG" and arg.get("value") == bad_arg:
-                        error_node = arg.get("value", arg)
-                        break
-                
-                self.error(f"Expected {expected_str}, got {self._format_type(arg_type)}",
-                    error_node)
+                continue
+
+            ok, bad_arg, expected, actual = self._check_overload_types(overload, matched)
+            if not ok:
+                expected_str = self._format_type(expected)
+                self.error(
+                    f"Expected {expected_str}, got {self._format_type(actual)}",
+                    bad_arg)
                 return
-            
-            # всё подошло!
+
             ordered_args = []
-            for param in params:
+            for param in overload.get("args", []):
                 if param["name"] in matched:
                     ordered_args.append(matched[param["name"]])
                 else:
                     if "default" not in param:
-                        self.error(f"Parameter '{param['name']}' has no default value", callee)
+                        self.error(
+                            f"Parameter '{param['name']}' has no default value", callee)
                         return
-                    ordered_args.append(self._create_default_node(param["default"]))
-            
+
+                    default_node = self._create_default_node(param["default"])
+                    if default_node is None:
+                        self.error(
+                            f"Invalid default for parameter '{param['name']}'", callee)
+                        return
+                    ordered_args.append(default_node)
+
             node["args"] = ordered_args
             for arg_node in ordered_args:
                 self.check(arg_node)
-            
             return self._parse_type_string(overload.get("returns", "any"))
-        
-        # ни одна перегрузка не подошла.
+
         expected_msg = []
         for overload in overloads:
             params = []
@@ -1789,9 +1750,11 @@ class SemanticAnalysis(SemanticBase):
                 req = "required" if p.get("required", False) else "optional"
                 params.append(f"  |  {pname}: {ptype_str} ({req})")
             expected_msg.append("  | {\n" + "\n".join(params) + "\n  | }")
-        
-        self.error(f"No matching overload for built-in function '{func_name}'.\n"
-                    f"Expected one of:\n" + "\n".join(expected_msg), callee)
+
+        self.error(
+            f"No matching overload for built-in function '{func_name}'.\n"
+            f"Expected one of:\n" + "\n".join(expected_msg),
+            callee)
 
 
     def _get_module_function_type(self, node: dict):
@@ -1854,3 +1817,25 @@ class SemanticAnalysis(SemanticBase):
         # сигнатуры нет - возвращаем ANY.
         return {"ANY"}
 
+
+
+    def _check_overload_types(self, overload, matched):
+        params = overload.get("args", [])
+        for param in params:
+            if param["name"] not in matched:
+                continue
+            arg_node = matched[param["name"]]
+            actual = self.get_operand_type(arg_node)
+            expected_raw = param.get("type", "any")
+            if isinstance(expected_raw, str):
+                expected = self._parse_type_string(expected_raw)
+            elif isinstance(expected_raw, list):
+                expected = set()
+                for e in expected_raw:
+                    expected |= self._parse_type_string(e)
+            else:
+                expected = {"ANY"}
+
+            if not self._check_type_compatibility(actual, expected):
+                return False, arg_node, expected, actual
+        return True, None, None, None

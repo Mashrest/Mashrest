@@ -6,6 +6,11 @@
 #define LIB_NAME "MATH"
 
 
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 static inline void check_numeric(MsrestAPI *api, uint8_t got)
 {
     if (got != MSREST_INT && got != MSREST_FLOAT)
@@ -63,7 +68,7 @@ EXPORT Value msrest_power(MsrestAPI *api, Value *args, int argc)
 EXPORT Value msrest_pi(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_INT, args[0].type);
+    api->lib_check_type(MSREST_INT, args[0].type, LIB_NAME, "pi");
 
     int precision = api->value_to_int(args[0]);
 
@@ -83,7 +88,7 @@ EXPORT Value msrest_pi(MsrestAPI *api, Value *args, int argc)
 EXPORT Value msrest_exponent(MsrestAPI *api, Value *args, int argc)
 {
     api->check_argc(argc, 1);
-    api->check_type(MSREST_INT, args[0].type);
+    api->lib_check_type(MSREST_INT, args[0].type, LIB_NAME, "exp");
 
     int precision = api->value_to_int(args[0]);
 

@@ -6,6 +6,13 @@
 
 #define LIB_NAME "ARRAYS"
 
+
+
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 typedef struct {
     int left;
     int right;
@@ -521,4 +528,138 @@ EXPORT Value pdq_sort(MsrestAPI *api, Value *args, int argc)
     free(types);
 
     return output;
+}
+
+
+EXPORT Value array_max(MsrestAPI *api, Value *args, int argc)
+{
+    api->check_argc(argc, 2);
+    Value container = args[0];
+    Value def = args[1];
+    uint32_t arr_len = api->array_size(container);
+
+    if (!arr_len) return def;
+
+    double best_num = 0.0;
+    char best_is_float = 0;
+    int have_best = 0;
+
+    for (uint32_t i = 0; i < arr_len; i++) {
+        Value cur = api->array_get(container, i);
+        double num;
+        char is_float;
+
+        switch (cur.type) {
+            case MSREST_FLOAT:
+                num = cur.floating;
+                is_float = 1;
+                break;
+            case MSREST_INT:
+                num = (double)cur.integer;
+                is_float = 0;
+                break;
+            default:
+                api->msrest_panic(
+                    "[" LIB_NAME "] array_max(): expected FLOAT or INTEGER, got %s",
+                    type_names[cur.type]
+                );
+        }
+
+        if (!have_best || num > best_num) {
+            best_num = num;
+            best_is_float = is_float;
+            have_best = 1;
+        }
+    }
+
+    if (best_is_float) {
+        return api->float_to_value(best_num);
+    }
+    return api->int_to_value((int64_t)best_num);
+}
+
+
+EXPORT Value array_min(MsrestAPI *api, Value *args, int argc)
+{
+    api->check_argc(argc, 2);
+    Value container = args[0];
+    Value def = args[1];
+    uint32_t arr_len = api->array_size(container);
+
+    if (!arr_len) return def;
+
+    double best_num = 0.0;
+    char best_is_float = 0;
+    int have_best = 0;
+
+    for (uint32_t i = 0; i < arr_len; i++) {
+        Value cur = api->array_get(container, i);
+        double num;
+        char is_float;
+
+        switch (cur.type) {
+            case MSREST_FLOAT:
+                num = cur.floating;
+                is_float = 1;
+                break;
+            case MSREST_INT:
+                num = (double)cur.integer;
+                is_float = 0;
+                break;
+            default:
+                api->msrest_panic(
+                    "[" LIB_NAME "] array_max(): expected FLOAT or INTEGER, got %s",
+                    type_names[cur.type]
+                );
+        }
+
+        if (!have_best || num < best_num) {
+            best_num = num;
+            best_is_float = is_float;
+            have_best = 1;
+        }
+    }
+
+    if (best_is_float) {
+        return api->float_to_value(best_num);
+    }
+    return api->int_to_value((int64_t)best_num);
+}
+
+
+EXPORT Value binary_search(MsrestAPI *api, Value *args, int argc)
+{
+    api->check_argc(argc, 2);
+    Value container = args[0];
+    Value element = args[1];
+    uint8_t element_type = args[1].type;
+    if (!api->soft_check_type(MSREST_INT, element_type) &&
+        !api->soft_check_type(MSREST_FLOAT, element_type)) {
+            api->msrest_panic("[" LIB_NAME "] binary_search(): unsupported value type %s", type_names[args[1].type]);
+        }
+
+    uint32_t arr_len = api->array_size(container);
+    if (arr_len == 0) return api->null_to_value();
+
+    uint32_t left = 0;
+    uint32_t right = arr_len - 1;
+
+    double el = api->value_to_double(element);
+
+    while (left <= right) {
+        uint32_t mid = (left + right) / 2;
+        Value mid_val = api->array_get(container, mid);
+        double d = api->value_to_double(mid_val);
+            
+        if (d == el) {
+            return api->int_to_value(mid);
+        }
+        else if (d < el) {
+            left = mid + 1;
+        }
+        else {
+            right = mid - 1;
+        }
+    }
+    return api->null_to_value();
 }

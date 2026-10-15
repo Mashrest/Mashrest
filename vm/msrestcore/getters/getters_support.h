@@ -13,7 +13,7 @@ typedef struct BoolArray BoolArray;
 
 uint32_t array_size(Value v);
 
-Value array_get(Value obj, int index);
+Value array_get(Value obj, uint32_t index);
 int64_t iarray_get(Value obj, int index);
 double farray_get(Value obj, int index);
 uint8_t barray_get(Value obj, int index);

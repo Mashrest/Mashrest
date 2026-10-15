@@ -7,6 +7,12 @@
 #define STRINGBUILDER_TYPE "StringBuilder"
 #define LIB_NAME "STRING_BUILDER"
 
+
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 /* Внутренние структуры */
 
 typedef struct {

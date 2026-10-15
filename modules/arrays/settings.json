@@ -43,7 +43,49 @@
         { "name": "array", "type": "array", "required": true }
       ],
       "returns": "array"
+    },
+
+    "max": {
+      "internal_name": "array_max",
+      "description": {
+        "en": "Returns the maximum numeric value in an array. If the array is empty, returns the provided default value. Supports both integers and floats.",
+        "ru": "Возвращает максимальное числовое значение в массиве. Если массив пуст, возвращает переданное значение по умолчанию. Поддерживает целые числа и числа с плавающей точкой."
+      },
+      "example": "a::max([3, 1.5, 2], 0) -> 3",
+      "args": [
+        { "name": "array", "type": "array", "required": true },
+        { "name": "default", "type": "any", "required": false, "default": null }
+      ],
+      "returns": "integer | float"
+    },
+
+    "min": {
+      "internal_name": "array_min",
+      "description": {
+        "en": "Returns the minimum numeric value in an array. If the array is empty, returns the provided default value. Supports both integers and floats.",
+        "ru": "Возвращает минимальное числовое значение в массиве. Если массив пуст, возвращает переданное значение по умолчанию. Поддерживает целые числа и числа с плавающей точкой."
+      },
+      "example": "a::min([3, 1.5, 2], 0) -> 1.5",
+      "args": [
+        { "name": "array", "type": "array", "required": true },
+        { "name": "default", "type": "any", "required": false, "default": null }
+      ],
+      "returns": "integer | float"
+    },
+
+    "binary_search": {
+      "internal_name": "binary_search",
+      "description": {
+        "en": "Performs a binary search on a sorted array of numbers to find the target value. Returns the index of the found element, or null if the value is not present.",
+        "ru": "Выполняет бинарный поиск в отсортированном массиве чисел для нахождения целевого значения. Возвращает индекс найденного элемента или null, если значение отсутствует."
+      },
+      "example": "a::binary_search([1, 2, 3, 4, 5], 3) -> 2",
+      "args": [
+        { "name": "array", "type": "array", "required": true },
+        { "name": "value", "type": "float|integer", "required": true }
+      ],
+      "returns": "integer | null"
     }
-    
+
   }
 }

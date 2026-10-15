@@ -3,7 +3,7 @@
 
 NativeFunc native_table[MAX_IMPORTS] = {0};
 
-static HMODULE loaded_modules[MAX_IMPORTS];
+static LibHandle loaded_modules[MAX_IMPORTS];
 static int loaded_count = 0;
 
 void load_imports(Program *prog)
@@ -19,53 +19,48 @@ void load_imports(Program *prog)
     {
         char dll_name[256];
 
-        sprintf(dll_name, "../modules/%s/%s.dll",
-        prog->imports[i].module,
-        prog->imports[i].module);
+        sprintf(dll_name, "../modules/%s/%s" LIB_EXT,
+                prog->imports[i].module,
+                prog->imports[i].module);
 
-        HMODULE dll = LoadLibraryA(dll_name);
+        LibHandle dll = lib_open(dll_name);
+
+        uint32_t (*get_abi)(void) =
+            (uint32_t (*)(void))lib_sym(dll, "msrest_abi_version");
+
+        if (!get_abi || get_abi() != MSREST_API_ABI_VERSION) {
+            printf("Module '%s' is not compatible with this Mashrest build\n",
+                prog->imports[i].module);
+            exit(1);
+        }
 
         if (!dll)
         {
-            printf("Cannot load %s\n", dll_name);
+            printf("Cannot load module '%s'\n", dll_name);
             exit(1);
         }
 
         loaded_modules[loaded_count++] = dll;
 
         native_table[i] =
-            (NativeFunc)GetProcAddress(
+            (NativeFunc)lib_sym(
                 dll,
                 prog->imports[i].function);
 
-                //printf("dll=%p\n", dll);
-
-native_table[i] =
-    (NativeFunc)GetProcAddress(
-        dll,
-        prog->imports[i].function);
-
-//printf("fn=%p\n", native_table[i]);
-
         if (!native_table[i])
         {
-            printf("Cannot find %s in %s\n",
+            printf("Cannot find '%s' in %s\n",
                    prog->imports[i].function,
                    dll_name);
             exit(1);
         }
-
-        /*printf("%d -> %s::%s\n",
-               i,
-               prog->imports[i].module,
-               prog->imports[i].function);*/
     }
 }
 
 void free_imports(void)
 {
     for (int i = 0; i < loaded_count; i++)
-        FreeLibrary(loaded_modules[i]);
+        lib_close(loaded_modules[i]);
 
     loaded_count = 0;
 }

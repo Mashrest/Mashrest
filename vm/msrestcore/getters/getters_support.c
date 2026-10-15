@@ -12,11 +12,11 @@
 /* There are functions that retrieve values ​​from arrays. */
 
 
-Value array_get(Value obj, int index) 
+Value array_get(Value obj, uint32_t index) 
 {
     Array *arr = obj.array;
     if (index < 0 || index >= arr->size) {
-        msrest_panic("Array index out of bounds: %d (size=%d)\n", index, arr->size);}
+        msrest_panic("Access violation error: Array index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
 
@@ -24,7 +24,7 @@ int64_t iarray_get(Value obj, int index)
 {
     IntArray *arr = obj.int_array;
     if (index < 0 || index >= arr->size) {
-        msrest_panic("IntArray index out of bounds: %d (size=%d)\n", index, arr->size);}
+        msrest_panic("Access violation error: IntArray index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
 
@@ -32,7 +32,7 @@ double farray_get(Value obj, int index)
 {
     FloatArray *arr = obj.float_array;
     if (index < 0 || index >= arr->size) {
-        msrest_panic("FloatArray index out of bounds: %d (size=%d)\n", index, arr->size);}
+        msrest_panic("Access violation error: FloatArray index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
 
@@ -40,7 +40,7 @@ uint8_t barray_get(Value obj, int index)
 {
     BoolArray *arr = obj.bool_array;
     if (index < 0 || index >= arr->size) {
-        msrest_panic("BoolArray index out of bounds: %d (size=%d)\n", index, arr->size);}
+        msrest_panic("Access violation error: BoolArray index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
 
@@ -62,7 +62,7 @@ uint32_t array_size(Value v)
             return v.bool_array->size;
         }
         default: {
-            msrest_panic("Expected array");
+            msrest_panic("[lib] Expected array");
         }
     }
 }
@@ -70,7 +70,7 @@ uint32_t array_size(Value v)
 
 uint32_t string_chars(Value v) {
     if (v.type != MSREST_STRING)
-        msrest_panic("Expected string");
+        msrest_panic(" [lib] Expected string");
     return v.string->chars;  // возвращаем кодовые точки (буквы, а не байты по факту).
 }
 
@@ -83,7 +83,7 @@ uint8_t string_empty(Value v)
 uint32_t string_bytes(Value v)
 {
     if (v.type != MSREST_STRING)
-        msrest_panic("Expected string");
+        msrest_panic(" [lib] Expected string");
     return v.string->length;
 }
 
@@ -112,7 +112,7 @@ uint32_t count_utf8_chars(const uint8_t *data, size_t bytes)
 const char *string_data(Value v)
 {
     if (v.type != MSREST_STRING)
-        msrest_panic("Expected string");
+        msrest_panic(" [lib] Expected string");
     return v.string->data;
 }
 

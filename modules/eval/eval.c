@@ -8,6 +8,12 @@
 #define LIB_NAME "EVAL"
 
 
+
+EXPORT uint32_t msrest_abi_version(void) {
+    return MSREST_API_ABI_VERSION;
+}
+
+
 /* парсинг математики */
 
 typedef struct Parser {

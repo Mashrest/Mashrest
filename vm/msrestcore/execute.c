@@ -1871,15 +1871,14 @@ OP_60: {
     PROF_START(); // NATIVE_FUNC
     #endif
     
+    vm->ip = ip - 9;
     NativeFunc fn = native_table[ins.arg1];
     if (!fn) {
-        vm->ip = ip - 9;
         msrest_panic("Access violation error: Native function %d not loaded\n", ins.arg1);
     }
 
     int argc = ins.arg2;
     if (__builtin_expect(argc < 0 || argc > 32, 0)) {
-        vm->ip = ip - 9;
         msrest_panic("NATIVE_FUNC: argc %d out of range [0..32]\n", argc);
     }
 
