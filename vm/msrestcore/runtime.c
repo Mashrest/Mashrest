@@ -41,6 +41,8 @@ MsrestAPI msrest_api = {
     .value_to_double = value_to_double,
     .value_to_bool = value_to_bool,
 
+    .value_equals = value_equals,
+
     .value_type = value_type,
     .string_data = string_data,
     .msrest_panic = msrest_panic,
@@ -73,6 +75,7 @@ MsrestAPI msrest_api = {
     .dict_size = dict_size,
     .dict_keys = dict_keys,
     .lib_check_type = lib_check_type,
+    .type_name = type_name,
 
 };
 
@@ -1091,6 +1094,68 @@ Value array_pop(Value v)
     return v.array->values[--v.array->size];
 }
 
+
+
+uint8_t value_equals(Value a, Value b)
+{
+    /* 1 - a и b равны. 0 - не равны.*/
+    /* разные типы: единственное исключение - int/float как числа. */
+    if (a.type != b.type) {
+        if ((a.type == MSREST_INT && b.type == MSREST_FLOAT) ||
+            (a.type == MSREST_FLOAT && b.type == MSREST_INT)) {
+            double da = (a.type == MSREST_INT) ? (double)a.integer : a.floating;
+            double db = (b.type == MSREST_INT) ? (double)b.integer : b.floating;
+            return da == db;
+        }
+        return 0;
+    }
+
+    switch (a.type) {
+        case MSREST_NULL: {
+            return 1;
+        }
+        case MSREST_INT: {
+            return a.integer == b.integer;
+        }
+        case MSREST_FLOAT: {
+            return a.floating == b.floating;
+        }
+        case MSREST_BOOL: {
+            return a.logic == b.logic;
+        }
+        case MSREST_STRING: {
+            /* сравниваем по хешу, потом по длине, потом по байтам. */
+            if (a.string->hash != b.string->hash) return 0;
+            if (a.string->length != b.string->length) return 0;
+            return memcmp(a.string->data, b.string->data, a.string->length) == 0;
+        }
+        case MSREST_ARRAY: {
+            return a.array == b.array;
+        }
+        case MSREST_INT_ARRAY: {
+            return a.int_array == b.int_array;
+        }
+        case MSREST_FLOAT_ARRAY: {
+            return a.float_array == b.float_array;
+        }
+        case MSREST_BOOL_ARRAY: {
+            return a.bool_array == b.bool_array;
+        }
+        case MSREST_DICT: {
+            return a.dictionary == b.dictionary;
+        }
+        case MSREST_NATIVE: {
+            return a.native == b.native;
+        }
+        case MSREST_FUNCREF: {
+            return a.fnref.addr == b.fnref.addr &&
+                   a.fnref.arity == b.fnref.arity;
+        }
+        default: {
+            return 0;
+        }
+    }
+}
 
 
 static char* value_to_qstring(Value v)

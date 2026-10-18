@@ -4,6 +4,28 @@
 #include <stdint.h>
 #include "../API/msrest_api.h"
 
+static const char* type_names[] = {
+    [MSREST_NULL]        = "NULL",
+    [MSREST_INT]         = "INT",
+    [MSREST_FLOAT]       = "FLOAT",
+    [MSREST_BOOL]        = "BOOL",
+    [MSREST_STRING]      = "STRING",
+    [MSREST_ARRAY]       = "ARRAY",
+    [MSREST_INT_ARRAY]   = "INT_ARRAY",
+    [MSREST_FLOAT_ARRAY] = "FLOAT_ARRAY",
+    [MSREST_BOOL_ARRAY]  = "BOOL_ARRAY",
+    [MSREST_DICT]        = "DICT",
+    [MSREST_NATIVE]      = "NATIVE",
+    [MSREST_FUNCREF]     = "FUNCREF",
+};
+
+/* инлайн-штуко, которая будет для ошибок */
+static inline const char* type_name(uint8_t type) {
+    if (type < sizeof(type_names)/sizeof(type_names[0]) && type_names[type])
+        return type_names[type];
+    return "UNKNOWN";
+}
+
 struct GCHeader {
     struct GCHeader *next;
     uint8_t color;

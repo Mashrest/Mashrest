@@ -11,7 +11,7 @@
 
 /* Версия ABI. Библиотеки и VM
    должны иметь одинаковую версию, иначе VM откажется грузить DLL. */
-#define MSREST_API_ABI_VERSION 2
+#define MSREST_API_ABI_VERSION 3
 
 enum {
     MSREST_NULL = 0,
@@ -27,28 +27,6 @@ enum {
     MSREST_NATIVE,
     MSREST_FUNCREF
 };
-
-static const char* type_names[] = {
-    [MSREST_NULL]        = "NULL",
-    [MSREST_INT]         = "INT",
-    [MSREST_FLOAT]       = "FLOAT",
-    [MSREST_BOOL]        = "BOOL",
-    [MSREST_STRING]      = "STRING",
-    [MSREST_ARRAY]       = "ARRAY",
-    [MSREST_INT_ARRAY]   = "INT_ARRAY",
-    [MSREST_FLOAT_ARRAY] = "FLOAT_ARRAY",
-    [MSREST_BOOL_ARRAY]  = "BOOL_ARRAY",
-    [MSREST_DICT]        = "DICT",
-    [MSREST_NATIVE]      = "NATIVE",
-    [MSREST_FUNCREF]     = "FUNCREF",
-};
-
-/* инлайн-штуко, которая будет для ошибок */
-static inline const char* type_name(uint8_t type) {
-    if (type < sizeof(type_names)/sizeof(type_names[0]) && type_names[type])
-        return type_names[type];
-    return "UNKNOWN";
-}
 
 
 #define IS_NUMBER(v) ((v).type == MSREST_INT || (v).type == MSREST_FLOAT)
@@ -115,6 +93,9 @@ typedef struct {
     double (*value_to_double)(Value);
     uint8_t (*value_to_bool)(Value);
     char *(*value_to_string)(Value v);
+
+    uint8_t (*value_equals)(Value a, Value b);
+    const char* (*type_name)(uint8_t type);
 
 
     void (*msrest_panic)(const char *, ...);

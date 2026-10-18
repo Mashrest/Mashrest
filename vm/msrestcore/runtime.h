@@ -395,9 +395,11 @@ static inline void lib_check_type(uint8_t required, uint8_t got, const char *lib
 {
     if (required != got) {
         msrest_panic("[%s] Type error: %s() Required: %s, Got: %s\n", 
-            lib_name, funcname, type_names[required], type_names[got]);
+            lib_name, funcname, type_name(required), type_name(got));
     }
 }
+
+uint8_t value_equals(Value a, Value b);
 
 _Noreturn void vm_shutdown(int code);
 

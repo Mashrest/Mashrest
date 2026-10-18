@@ -197,7 +197,7 @@ EXPORT Value append(MsrestAPI *api, Value *args, int argc) {
                 append_string(api, sb, str);
                 free(str);
             } else {
-                api->msrest_panic("[" LIB_NAME "] append(): unsupported type %s", type_names[type]);
+                api->msrest_panic("[" LIB_NAME "] append(): unsupported type %s", api->type_name(type));
             }
             break;
         }
@@ -270,7 +270,7 @@ EXPORT Value append_char(MsrestAPI *api, Value *args, int argc) {
         
         char_str = str;
     } else {
-        api->msrest_panic("[" LIB_NAME "] append_char(): expected integer or string, got %s", type_names[type]);
+        api->msrest_panic("[" LIB_NAME "] append_char(): expected integer or string, got %s", api->type_name(type));
     }
     
     // добавляем символ.

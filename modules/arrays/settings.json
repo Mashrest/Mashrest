@@ -1,15 +1,15 @@
 {
   "name": "arrays",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "author": "Mashrest",
   "description": "Internal library for work with arrays and sorting algorithms.",
   "requires": {
     "mashrest_v": "0.1.0",
-    "abi": 1
+    "abi": 3
   },
   "functions": {
 
-    "bubble_sort": {
+    "bubble_sorted": {
       "description": {
         "en": "Sorts an array in ascending order using the bubble sort algorithm.",
         "ru": "Сортирует массив по возрастанию алгоритмом пузырьковой сортировки."
@@ -21,7 +21,7 @@
       "returns": "array"
     },
 
-    "insertion_sort": {
+    "insertion_sorted": {
       "description": {
         "en": "Sorts an array in ascending order using the insertion sort algorithm.",
         "ru": "Сортирует массив по возрастанию алгоритмом сортировки вставками."
@@ -33,7 +33,7 @@
       "returns": "array"
     },
 
-    "pdq_sort": {
+    "pdq_sorted": {
       "description": {
         "en": "Sorts an array in ascending order using the pattern-defeating quicksort (PDQ) algorithm.",
         "ru": "Сортирует массив по возрастанию алгоритмом pattern-defeating quicksort (PDQ)."

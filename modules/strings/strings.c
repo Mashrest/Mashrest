@@ -19,7 +19,7 @@ static inline void lib_check_type(MsrestAPI *api, uint8_t required, uint8_t got,
 {
     if (required != got) {
         api->msrest_panic("[" LIB_NAME "] Type error: %s() Required: %s, Got: %s\n", 
-            funcname, type_names[required], type_names[got]);
+            funcname, api->type_name(required), api->type_name(got));
     }
 }
 
