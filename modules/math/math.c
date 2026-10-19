@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "API/msrest_api.h"
+#include <string.h>
 
 #define LIB_NAME "MATH"
 

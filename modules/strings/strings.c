@@ -323,6 +323,7 @@ EXPORT Value lower(MsrestAPI* api, Value* args, int argc) {
     return change_case(api, args, argc, 0);
 }
 
+
 EXPORT Value ord(MsrestAPI* api, Value* args, int argc) {
     api->check_argc(argc, 1);
     lib_check_type(api, MSREST_STRING, args[0].type, "ord");

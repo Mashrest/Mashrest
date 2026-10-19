@@ -5,7 +5,7 @@
   "description": "Efficient string concatenation library. Use StringBuilder for loops to avoid O(n²) copying.",
   "requires": {
     "mashrest_v": "0.1.0",
-    "abi": 1
+    "abi": 3
   },
   "functions": {
     "new": {

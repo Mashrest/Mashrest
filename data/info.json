@@ -1,7 +1,7 @@
 {
   "mashrest_v": "0.2.4",
   "description": "What i supposed to write here. Standart Mashrest compiler.",
-  "ABI": 1,
+  "ABI": 3,
   "modes": {
     "info": 1,
     "note": 0,

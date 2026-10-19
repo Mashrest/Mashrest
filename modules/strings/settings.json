@@ -5,7 +5,7 @@
   "description": "Standard library for work with strings.",
   "requires": {
     "mashrest_v": "0.1.0",
-    "abi": 1
+    "abi": 3
   },
   "functions": {
     "length": {

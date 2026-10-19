@@ -5,7 +5,7 @@
     "description": "Standard library for mathematical operations and expression parsing.",
     "requires": {
         "mashrest_v": "0.1.0",
-        "abi": 1
+        "abi": 3
     },
     "functions": {
         "build_ast": {
