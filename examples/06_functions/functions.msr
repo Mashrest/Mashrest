@@ -24,6 +24,10 @@ flow getconsole(txt)
     var data = movin()
     return data
 
+^^ 
+The getref() function is specific function, that gives address of suggested function
+and you can call it on stack 
+^^
 var collection = {"add": getref(add),
                 "sub": getref(sub),
                 "mul": getref(mul),

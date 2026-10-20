@@ -9,7 +9,10 @@
   },
   "functions": {
     "new": {
-      "description": "Creates a new empty StringBuilder (with capacity or not).",
+      "description": {
+        "en": "Creates a new empty StringBuilder (with capacity or not).",
+        "ru": "Создаёт новый пустой StringBuilder (с указанной ёмкостью или без)."
+      },
       "example": "sb::new(32)",
       "args": [
         { "name": "capacity", "type": "integer", "required": false, "default": 16 }
@@ -18,7 +21,10 @@
     },
 
     "append": {
-      "description": "Appends any value to the StringBuilder.",
+      "description": {
+        "en": "Appends any value to the StringBuilder.",
+        "ru": "Добавляет любое значение в StringBuilder."
+      },
       "example": "sb::append(builder, 123)",
       "args": [
         { "name": "builder", "type": "native", "required": true },
@@ -28,7 +34,10 @@
     },
 
     "append_str": {
-      "description": "Appends a string to the StringBuilder.",
+      "description": {
+        "en": "Appends a string to the StringBuilder.",
+        "ru": "Добавляет строку в StringBuilder."
+      },
       "example": "sb::append_str(builder, \"hello\")",
       "args": [
         { "name": "builder", "type": "native", "required": true },
@@ -38,7 +47,10 @@
     },
 
     "append_char": {
-      "description": "Appends a single character (by ASCII code) to the StringBuilder.",
+      "description": {
+        "en": "Appends a single character (by ASCII code) to the StringBuilder.",
+        "ru": "Добавляет один символ (по ASCII-коду) в StringBuilder."
+      },
       "example": "sb::append_char(builder, 65)",
       "args": [
         { "name": "builder", "type": "native", "required": true },
@@ -48,7 +60,10 @@
     },
 
     "build": {
-      "description": "Builds and returns the resulting string.",
+      "description": {
+        "en": "Builds and returns the resulting string.",
+        "ru": "Собирает и возвращает итоговую строку."
+      },
       "example": "sb::build(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -57,7 +72,10 @@
     },
 
     "clear": {
-      "description": "Clears the contents of the StringBuilder.",
+      "description": {
+        "en": "Clears the contents of the StringBuilder.",
+        "ru": "Очищает содержимое StringBuilder."
+      },
       "example": "sb::clear(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -66,7 +84,10 @@
     },
 
     "length": {
-      "description": "Returns the current length of the StringBuilder.",
+      "description": {
+        "en": "Returns the current length of the StringBuilder.",
+        "ru": "Возвращает текущую длину StringBuilder."
+      },
       "example": "sb::length(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -75,7 +96,10 @@
     },
 
     "capacity": {
-      "description": "Returns the current capacity of the StringBuilder.",
+      "description": {
+        "en": "Returns the current capacity of the StringBuilder.",
+        "ru": "Возвращает текущую ёмкость StringBuilder."
+      },
       "example": "sb::capacity(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -84,7 +108,10 @@
     },
 
     "ensure_capacity": {
-      "description": "Ensures the StringBuilder has at least the given capacity.",
+      "description": {
+        "en": "Ensures the StringBuilder has at least the given capacity.",
+        "ru": "Гарантирует, что StringBuilder имеет как минимум заданную ёмкость."
+      },
       "example": "sb::ensure_capacity(builder, 128)",
       "args": [
         { "name": "builder", "type": "native", "required": true },
@@ -94,7 +121,10 @@
     },
 
     "reset": {
-      "description": "Resets the StringBuilder to its initial state.",
+      "description": {
+        "en": "Resets the StringBuilder to its initial state.",
+        "ru": "Сбрасывает StringBuilder в исходное состояние."
+      },
       "example": "sb::reset(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -103,7 +133,10 @@
     },
 
     "reverse": {
-      "description": "Reverses the contents of the StringBuilder.",
+      "description": {
+        "en": "Reverses the contents of the StringBuilder.",
+        "ru": "Разворачивает содержимое StringBuilder в обратном порядке."
+      },
       "example": "sb::reverse(builder)",
       "args": [
         { "name": "builder", "type": "native", "required": true }
@@ -112,7 +145,10 @@
     },
 
     "substring": {
-      "description": "Returns a substring of the StringBuilder contents.",
+      "description": {
+        "en": "Returns a substring of the StringBuilder contents.",
+        "ru": "Возвращает подстроку содержимого StringBuilder."
+      },
       "example": "sb::substring(builder, 0, 5)",
       "args": [
         { "name": "builder", "type": "native", "required": true },

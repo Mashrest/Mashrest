@@ -1,0 +1,36 @@
+// This code shows how can you assign value to a variable
+
+// Integer type
+var x = 100
+const y = 200 
+
+// y = 300
+// Cannot assign value to the constant!
+
+
+
+// float type
+const float_t = 3.141
+
+// Boolean type
+const boolean_t = <1>
+
+// NULLTYPE
+const null_t = null
+
+// string (UTF-8)
+const str_t = "This is a string!"
+
+// array
+const arr_t = [1, 2, 3, 4, 5]
+
+// dictionary
+const dict_t = {"name": "Igor", "age": 14}
+
+// move answer to the console
+movoutln("x: " + x)
+movoutln("y: " + y)
+
+// move to the console without newline
+movout("No newline?")
+movoutln(" Yes")

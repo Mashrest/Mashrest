@@ -10,7 +10,10 @@
   "functions": {
     "square": {
       "internal_name": "msrest_square",
-      "description": "Returns the square of a number.",
+      "description": {
+        "en": "Returns the square of a number.",
+        "ru": "Возвращает квадрат числа."
+      },
       "example": "m::square(5) -> 25",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -20,7 +23,10 @@
 
     "sqroot": {
       "internal_name": "msrest_sqroot",
-      "description": "Returns the square root of a number.",
+      "description": {
+        "en": "Returns the square root of a number.",
+        "ru": "Возвращает квадратный корень числа."
+      },
       "example": "m::sqroot(16) -> 4",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -30,7 +36,10 @@
 
     "const_exp": {
       "internal_name": "msrest_const_exp",
-      "description": "Returns e with the given precision.",
+      "description": {
+        "en": "Returns e with the given precision.",
+        "ru": "Возвращает число e с заданной точностью."
+      },
       "example": "m::const_exp(5) -> 2.71828",
       "args": [
         { "name": "precision", "type": "integer", "required": false, "default": 5 }
@@ -40,7 +49,10 @@
 
     "const_pi": {
       "internal_name": "msrest_const_pi",
-      "description": "Returns the value of pi with the given precision.",
+      "description": {
+        "en": "Returns the value of pi with the given precision.",
+        "ru": "Возвращает значение числа пи с заданной точностью."
+      },
       "example": "m::const_pi(5) -> 3.14159",
       "args": [
         { "name": "precision", "type": "integer", "required": false, "default": 5 }
@@ -50,7 +62,10 @@
 
     "exp": {
       "internal_name": "msrest_exp",
-      "description": "Returns e raised to the power x.",
+      "description": {
+        "en": "Returns e raised to the power x.",
+        "ru": "Возвращает e, возведённое в степень x."
+      },
       "example": "m::exp(2) -> 7.389056099...",
       "args": [
         { "name": "x", "type": "numeric", "required": true }
@@ -60,7 +75,10 @@
 
     "sin": {
       "internal_name": "msrest_sinus",
-      "description": "Returns the sine of a number.",
+      "description": {
+        "en": "Returns the sine of a number.",
+        "ru": "Возвращает синус числа."
+      },
       "example": "m::sin(45) -> 0.707107...",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -70,7 +88,10 @@
 
     "cos": {
       "internal_name": "msrest_cosin",
-      "description": "Returns the cosine of a number.",
+      "description": {
+        "en": "Returns the cosine of a number.",
+        "ru": "Возвращает косинус числа."
+      },
       "example": "m::cos(0) -> 1",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -80,7 +101,10 @@
 
     "power": {
       "internal_name": "msrest_power",
-      "description": "Raises a number to the given power. Always returns a float.",
+      "description": {
+        "en": "Raises a number to the given power. Always returns a float.",
+        "ru": "Возводит число в заданную степень. Всегда возвращает float."
+      },
       "example": "m::power(2, 10) -> 1024",
       "args": [
         { "name": "base", "type": "numeric", "required": true },
@@ -91,7 +115,10 @@
 
     "min": {
       "internal_name": "msrest_min",
-      "description": "Finds the minimum of two numbers. Returns integer if both are integers, otherwise float.",
+      "description": {
+        "en": "Finds the minimum of two numbers. Returns integer if both are integers, otherwise float.",
+        "ru": "Находит минимум из двух чисел. Возвращает integer, если оба целые, иначе float."
+      },
       "example": "m::min(2, 10) -> 2",
       "args": [
         { "name": "first", "type": "numeric", "required": true },
@@ -102,7 +129,10 @@
 
     "max": {
       "internal_name": "msrest_max",
-      "description": "Finds the maximum of two numbers. Returns integer if both are integers, otherwise float.",
+      "description": {
+        "en": "Finds the maximum of two numbers. Returns integer if both are integers, otherwise float.",
+        "ru": "Находит максимум из двух чисел. Возвращает integer, если оба целые, иначе float."
+      },
       "example": "m::max(7, 10) -> 10",
       "args": [
         { "name": "first", "type": "numeric", "required": true },
@@ -113,7 +143,10 @@
 
     "clamp": {
       "internal_name": "msrest_clamp",
-      "description": "Clamps a number into the [min, max] range.",
+      "description": {
+        "en": "Clamps a number into the [min, max] range.",
+        "ru": "Ограничивает число диапазоном [min, max]."
+      },
       "example": "m::clamp(10, 30, 100) -> 30",
       "args": [
         { "name": "min", "type": "numeric", "required": true },
@@ -125,7 +158,10 @@
 
     "abs": {
       "internal_name": "msrest_abs",
-      "description": "Returns the absolute value of a number.",
+      "description": {
+        "en": "Returns the absolute value of a number.",
+        "ru": "Возвращает абсолютное значение числа."
+      },
       "example": "m::abs(-39) -> 39",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -135,7 +171,10 @@
 
     "round": {
       "internal_name": "msrest_round",
-      "description": "Rounds a number to the nearest integer. Integer input is returned unchanged.",
+      "description": {
+        "en": "Rounds a number to the nearest integer. Integer input is returned unchanged.",
+        "ru": "Округляет число до ближайшего целого. Целое число возвращается без изменений."
+      },
       "example": "m::round(3.7) -> 4.0",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -145,7 +184,10 @@
 
     "floor": {
       "internal_name": "msrest_floor",
-      "description": "Rounds a number down toward negative infinity. Integer input is returned unchanged.",
+      "description": {
+        "en": "Rounds a number down toward negative infinity. Integer input is returned unchanged.",
+        "ru": "Округляет число вниз (к минус бесконечности). Целое число возвращается без изменений."
+      },
       "example": "m::floor(-10.1) -> -11.0",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -155,7 +197,10 @@
 
     "ceil": {
       "internal_name": "msrest_ceil",
-      "description": "Rounds a number up toward positive infinity. Integer input is returned unchanged.",
+      "description": {
+        "en": "Rounds a number up toward positive infinity. Integer input is returned unchanged.",
+        "ru": "Округляет число вверх (к плюс бесконечности). Целое число возвращается без изменений."
+      },
       "example": "m::ceil(-10.1) -> -10.0",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -163,10 +208,12 @@
       "returns": "numeric"
     },
 
-
     "trunc": {
       "internal_name": "msrest_trunc",
-      "description": "Truncates a number toward zero (drops the fractional part). Integer input is returned unchanged.",
+      "description": {
+        "en": "Truncates a number toward zero (drops the fractional part). Integer input is returned unchanged.",
+        "ru": "Отбрасывает дробную часть числа (усечение к нулю). Целое число возвращается без изменений."
+      },
       "example": "m::trunc(-10.9) -> -10.0",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -176,7 +223,10 @@
 
     "sign": {
       "internal_name": "msrest_sign",
-      "description": "Returns the sign of a number: -1 if negative, 0 if zero, 1 if positive.",
+      "description": {
+        "en": "Returns the sign of a number: -1 if negative, 0 if zero, 1 if positive.",
+        "ru": "Возвращает знак числа: -1 если отрицательное, 0 если ноль, 1 если положительное."
+      },
       "example": "m::sign(-39) -> -1",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -186,7 +236,10 @@
 
     "is_even": {
       "internal_name": "msrest_is_even",
-      "description": "Returns true if the integer is even, false otherwise.",
+      "description": {
+        "en": "Returns true if the integer is even, false otherwise.",
+        "ru": "Возвращает true, если целое число чётное, иначе false."
+      },
       "example": "m::is_even(4) -> <1>",
       "args": [
         { "name": "n", "type": "integer", "required": true }
@@ -196,7 +249,10 @@
 
     "is_odd": {
       "internal_name": "msrest_is_odd",
-      "description": "Returns true if the integer is odd, false otherwise.",
+      "description": {
+        "en": "Returns true if the integer is odd, false otherwise.",
+        "ru": "Возвращает true, если целое число нечётное, иначе false."
+      },
       "example": "m::is_odd(3) -> <1>",
       "args": [
         { "name": "n", "type": "integer", "required": true }
@@ -206,7 +262,10 @@
 
     "fmod": {
       "internal_name": "msrest_fmod",
-      "description": "Returns the floating-point remainder of a/b. The result has the same sign as the dividend.",
+      "description": {
+        "en": "Returns the floating-point remainder of a/b. The result has the same sign as the dividend.",
+        "ru": "Возвращает остаток от деления a/b для чисел с плавающей точкой. Знак результата совпадает со знаком делимого."
+      },
       "example": "m::fmod(10.5, 3) -> 1.5",
       "args": [
         { "name": "a", "type": "numeric", "required": true },
@@ -217,7 +276,10 @@
 
     "frac": {
       "internal_name": "msrest_frac",
-      "description": "Returns the fractional part of a number, always in [0, 1). Returns 0 for integers.",
+      "description": {
+        "en": "Returns the fractional part of a number, always in [0, 1). Returns 0 for integers.",
+        "ru": "Возвращает дробную часть числа, всегда в диапазоне [0, 1). Для целых чисел возвращает 0."
+      },
       "example": "m::frac(-3.7) -> 0.3",
       "args": [
         { "name": "value", "type": "numeric", "required": true }
@@ -227,7 +289,10 @@
 
     "factorial": {
       "internal_name": "msrest_factorial",
-      "description": "Returns the factorial of a non-negative integer (max 20).",
+      "description": {
+        "en": "Returns the factorial of a non-negative integer (max 20).",
+        "ru": "Возвращает факториал неотрицательного целого числа (максимум 20)."
+      },
       "example": "m::factorial(5) -> 120",
       "args": [
         { "name": "n", "type": "integer", "required": true }
@@ -237,7 +302,10 @@
 
     "sum_progression": {
       "internal_name": "msrest_sum_progression",
-      "description": "Returns the sum of an arithmetic progression: n terms starting at 'start' with step 'step' (optional, default = 1).",
+      "description": {
+        "en": "Returns the sum of an arithmetic progression: n terms starting at 'start' with step 'step' (optional, default = 1).",
+        "ru": "Возвращает сумму арифметической прогрессии: n членов, начиная с 'start' с шагом 'step' (необязательно, по умолчанию = 1)."
+      },
       "example": "m::sum_progression(1, 1, 100) -> 5050",
       "args": [
         { "name": "start", "type": "integer", "required": true },
@@ -249,7 +317,10 @@
 
     "to_radians": {
       "internal_name": "msrest_to_radians",
-      "description": "Converts an angle from degrees to radians.",
+      "description": {
+        "en": "Converts an angle from degrees to radians.",
+        "ru": "Переводит угол из градусов в радианы."
+      },
       "example": "m::to_radians(180) -> 3.141592653589793",
       "args": [
         { "name": "degrees", "type": "numeric", "required": true }
@@ -259,13 +330,28 @@
 
     "to_degrees": {
       "internal_name": "msrest_to_degrees",
-      "description": "Converts an angle from radians to degrees.",
+      "description": {
+        "en": "Converts an angle from radians to degrees.",
+        "ru": "Переводит угол из радиан в градусы."
+      },
       "example": "m::to_degrees(3.141592653589793) -> 180.0",
       "args": [
         { "name": "radians", "type": "numeric", "required": true }
       ],
       "returns": "float"
-    }
+    },
 
+    "upper": {
+      "internal_name": "msrest_upper",
+      "description": {
+        "en": "Converts string to uppercase.",
+        "ru": "Преобразует строку в верхний регистр."
+      },
+      "example": "s::upper(\"hello\") -> \"HELLO\"",
+      "args": [
+        { "name": "text", "type": "string", "required": true }
+      ],
+      "returns": "string"
+    }
   }
 }

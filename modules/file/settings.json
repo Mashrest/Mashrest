@@ -10,7 +10,10 @@
   "functions": {
     "exists": {
       "internal_name": "exists",
-      "description": "Checks if a file exists.",
+      "description": {
+        "en": "Checks if a file exists.",
+        "ru": "Проверяет, существует ли файл."
+      },
       "args": [
         { "name": "path", "type": "string", "required": true }
       ],
@@ -19,7 +22,10 @@
 
     "read": {
       "internal_name": "readf",
-      "description": "Reads the contents of a file.",
+      "description": {
+        "en": "Reads the contents of a file.",
+        "ru": "Читает содержимое файла."
+      },
       "args": [
         { "name": "path", "type": "string", "required": true }
       ],
@@ -28,7 +34,10 @@
 
     "readlines": {
       "internal_name": "readlines",
-      "description": "Reads lines from a file.",
+      "description": {
+        "en": "Reads lines from a file.",
+        "ru": "Читает строки из файла."
+      },
       "args": [
         { "name": "path", "type": "string", "required": true },
         { "name": "mode", "type": "string", "required": true }
@@ -38,16 +47,23 @@
 
     "write": {
       "internal_name": "writetofile",
-      "description": "Writes data to a file.",
+      "description": {
+        "en": "Writes data to a file.",
+        "ru": "Записывает данные в файл."
+      },
       "args": [
         { "name": "path", "type": "string", "required": true },
         { "name": "data", "type": "string", "required": true }
       ],
       "returns": "boolean"
     },
+
     "append": {
       "internal_name": "append",
-      "description": "Appends data to a file.",
+      "description": {
+        "en": "Appends data to a file.",
+        "ru": "Дописывает данные в конец файла."
+      },
       "args": [
         { "name": "path", "type": "string", "required": true },
         { "name": "data", "type": "string", "required": true }

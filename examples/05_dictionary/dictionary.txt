@@ -4,15 +4,16 @@ var dict = {
     "hobbies": ["Swimming", "Play games", "Learning"]
 }
 
-movoutln(dict) // the order is not guaranteed
+movoutln("Dictionary: " + dict + "\n") // the order is not guaranteed
 
-movoutln(dict["name"]) // get element
-movoutln(dict["hobbies"][1])
+movoutln("Element 'name': " + dict["name"]) // get element
+movoutln("Hobbies: " + dict["hobbies"][1])
 
 dict["info"] = "lives in Finland"
 
 // returns a boolean value (was the value removed?)
-movoutln("deleted with code " + dict.remove("age")) 
+movoutln("Deleted with code " + dict.remove("age")) 
+
 movoutln("Keys: " + dict.keys())
 movoutln("Values: " + dict.values())
 movoutln("Pairs: " + dict.pairs())

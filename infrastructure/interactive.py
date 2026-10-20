@@ -2,8 +2,10 @@ import json
 import os
 import sys
 
-MODULES_DIR = os.path.join(os.path.dirname(__file__), "modules")
+MODULES_DIR =   os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), "modules",)
 PAGE_SIZE = 10
+IGNORED_DIRS = {"test"}
 
 TYPES = {
         "number": "integer",
@@ -147,6 +149,8 @@ def load_modules():
     for entry in sorted(os.listdir(MODULES_DIR)):
         path = os.path.join(MODULES_DIR, entry)
         if not os.path.isdir(path):
+            continue
+        if entry in IGNORED_DIRS:
             continue
 
         settings = os.path.join(path, "settings.json")

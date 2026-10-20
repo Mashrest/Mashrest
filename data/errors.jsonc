@@ -1,0 +1,175 @@
+{
+  "functions": {
+    "movoutln": {
+      "metadata": {      
+        "group": "io",
+        "internal_name": "PRINTLN"
+      },
+      "description": {
+        "ru": "Выводит значение и переводит курсор на новую строку.",
+        "en": "Prints a value and moves the cursor to a new line."
+      },
+      "example": "movoutln(\"Hello\")",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true }
+          ],
+          "returns": "VOID"
+        }
+      ]
+    },
+    "movout": {
+      "metadata": {      
+        "group": "io",
+        "internal_name": "PRINT"
+      },
+      "description": {
+        "ru": "Выводит значение.",
+        "en": "Prints a value."
+      },
+      "example": "movout(\"Hello\")",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true }
+          ],
+          "returns": "VOID"
+        }
+      ]
+    },
+    "alea": {
+      "metadata": {      
+          "group": "pseudo-random",
+          "internal_name": "ALEA"
+        },
+        "description": {
+          "ru": "Рандомное значение из двух диапазонов.",
+          "en": "Random value from two ranges."
+        },
+        "example": "alea(1, 100)",
+        "overloads": [
+          {
+            "args": [
+              { "name": "min", "type": "INTEGER", "required": true },
+              { "name": "max", "type": "INTEGER", "required": true }
+            ],
+            "returns": "INTEGER"
+          }
+        ]
+      },
+    "movin": {
+      "metadata": {      
+        "group": "io",
+        "internal_name": "INPUT"
+      },
+      "description": {
+        "ru": "Принимает ввод из консоли.",
+        "en": "Takes input from the console."
+      },
+      "example": "movin()",
+      "overloads": [
+        {
+          "args": [],
+          "returns": "STRING"
+        }
+      ]
+    },
+    "getref": {
+      "metadata": {
+        "group": "functional",
+        "internal_name": "GETREF"
+      },
+      "description": {
+        "ru": "Возвращает ссылку на пользовательскую функцию.",
+        "en": "Returns a reference to a user-defined function."
+      },
+      "example": "getref(add)",
+      "overloads": [
+        {
+          "args": [
+            { "name": "fn", "type": "FNREF", "required": true }
+          ],
+          "returns": "FNREF"
+        }
+      ]
+    },
+    "float": {
+      "metadata": {      
+        "group": "converter",
+        "internal_name": "2"
+      },
+      "description": {
+        "ru": "Конвертирует значение в число с плавающей точкой.",
+        "en": "Converts a value to a floating-point number."
+      },
+      "example": "float(23)",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true }
+          ],
+          "returns": "FLOAT"
+        }
+      ]
+    },
+    "typeof": {
+      "metadata": {      
+        "group": "converter",
+        "internal_name": "TYPEOF"
+      },
+        "ru": "Возвращает строку или идентификатор типа.",
+        "en": "Returns the type name or ID."
+      },
+      /* COOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOMMEEENT */
+      "example": "typeof('hello')",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true },
+            { "name": "mode", "type": "INTEGER", "required": false, "default": 0 }
+          ],
+          "returns": "STRING|INTEGER"
+        }
+      ]
+    },
+    "int": {
+      "metadata": {      
+        "group": "converter",
+        "internal_name": "1"
+      },
+      "description": {
+        "ru": "Конвертирует значение в целое число.",
+        "en": "Converts a value to an integer."
+      },
+      "example": "int('23')",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true }
+          ],
+          "returns": "INTEGER"
+        }
+      ]
+    },
+    "str": {
+      "metadata": {      
+        "group": "converter",
+        "internal_name": "4"
+      },
+      "description": {
+        "ru": "Конвертирует значение в строку.",
+        "en": "Converts a value to a string."
+      },
+      "example": "str(84)",
+      "overloads": [
+        {
+          "args": [
+            { "name": "value", "type": "ANY", "required": true }
+          ],
+          "returns": "STRING"
+        }
+      ]
+    }
+    }
+}
