@@ -791,7 +791,7 @@ Value string_new_len(const char *str, size_t len)
     s->chars = count_utf8_chars((uint8_t*)str, len);
     
     s->data = safe_malloc(len + 1);
-    if (__builtin_expect(!s->data, 0)) msrest_panic("Out of memory");
+    if (__builtin_expect(!s->data, 0)) msrest_panic(" [lib] Out of memory");
     memcpy(s->data, str, len);
     s->data[len] = '\0';
 
