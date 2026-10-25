@@ -12,31 +12,31 @@ import json
 import os
 
 
-AST =True
+AST = False
 DEBUG = False
-DIS = True
+DIS = False
 
 
-"""COLORS = {
+COLORS = {
     'red': "\033[38;5;88m",
     'termination': "\033[91m",
     'cyan': "\033[94m",
     'reset': "\033[0m",
     'orange': "\033[38;5;208m",
     'cyan': "\033[96m"
-}"""
+}
 
 # now i cant determinate parent process: in Powershell you can make cool colors, in cmd - cannot
 # TODO for future
 
-COLORS = {
+"""COLORS = {
     'red': "",
     'termination': "",
     'cyan': "",
     'reset': "",
     'orange': "",
     'cyan': ""
-}
+}"""
 
 
 # отображение строкового режима исходника в политику байт-кода.

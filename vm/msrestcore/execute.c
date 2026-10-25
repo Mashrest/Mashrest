@@ -346,18 +346,56 @@ OP_09: {
     if (!IS_NUMBER(a) || !IS_NUMBER(b)) {
         vm->ip = ip - 9;
         const char* imm1 = type_name(a.type);
-        const char* imm2 = type_name(b.type);    
-        msrest_panic("Type error: expected INTEGER or FLOAT, got %s and %s types\n", imm1, imm2);
+        const char* imm2 = type_name(b.type);
+        msrest_panic("Type error: expected INTEGER or FLOAT, got %s and %s types",
+                     imm1, imm2);
     }
 
-    int64_t int_a = (a.type == MSREST_INT) ? a.integer : (int64_t)value_to_double(a);
-    int64_t int_b = (b.type == MSREST_INT) ? b.integer : (int64_t)value_to_double(b);
+    /* Приводим к int64_t с усечением к нулю (C-семантика), но с проверкой диапазона. */
+    int64_t int_a, int_b;
+
+    if (a.type == MSREST_INT) {
+        int_a = a.integer;
+    } else {
+        double da = value_to_double(a);
+        if (isnan(da) || isinf(da) || da < (double)INT64_MIN || da > (double)INT64_MAX) {
+            vm->ip = ip - 9;
+            msrest_panic("Value error: cannot convert FLOAT %g to INTEGER (out of range)", da);
+        }
+        int_a = (int64_t)da; // усечение к нулю
+    }
+
+    if (b.type == MSREST_INT) {
+        int_b = b.integer;
+    } else {
+        double db = value_to_double(b);
+        if (isnan(db) || isinf(db) || db < (double)INT64_MIN || db > (double)INT64_MAX) {
+            vm->ip = ip - 9;
+            msrest_panic("Value error: cannot convert FLOAT %g to INTEGER (out of range)", db);
+        }
+        int_b = (int64_t)db; // усечение к нулю
+    }
+
     if (int_b == 0) {
         vm->ip = ip - 9;
-        msrest_panic("Access violation error: Cannot divide without remainder by zero\n");
+        msrest_panic("Access violation error: Cannot divide without remainder by zero");
     }
 
-    LPUSH(int_to_value(int_a / int_b));
+    /* Защита от переполнения INT64_MIN / -1 (UB в C). */
+    if (int_a == INT64_MIN && int_b == -1) {
+        vm->ip = ip - 9;
+        msrest_panic("Overflow error: integer division overflow (%" PRId64 " / %" PRId64 ")",
+                     int_a, int_b);
+    }
+
+    /* Floor-деление (округление вниз, как Python //). */
+    int64_t q = int_a / int_b;
+    int64_t r = int_a % int_b;
+    if (r != 0 && ((r < 0) != (int_b < 0))) {
+        q -= 1;
+    }
+
+    LPUSH(int_to_value(q));
 
     #if _PROFILE
     PROF_END();

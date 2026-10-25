@@ -17,7 +17,7 @@ Mashrest is an educational language project. It includes:
 - **VM (MashrestVM)** - a Win64 virtual machine that executes `.mrb` bytecode.
 - **Modules** - third-party DLLs written against the Mashrest module API (includes a standard library).
 
-The project is aimed at learning how compilers and virtual machines work.
+The project was created to teach programming logic: clear errors and control help to understand why the code works exactly as it does.
 
 ## Requirements
 
@@ -70,9 +70,17 @@ Compiles the file and runs it immediately. The intermediate file is placed in th
 
 Create a `.msr` file and use the commands above. See `examples/` for reference programs.
 
-```msr
+```Mashrest
 movoutln("Hello World!")
 ```
+
+## Interactive Module Exploration
+
+Using the command 
+``` bash
+python msrest.py mii
+```
+you can navigate through the modules folder from the console and explore the various functions provided. You can learn more by entering the `help` command.
 
 ## Building the VM from source
 

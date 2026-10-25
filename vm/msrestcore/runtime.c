@@ -216,7 +216,7 @@ static void print_source_line(Source *src, uint32_t line,
     const char *line_end = line_start;
     while (*line_end && *line_end != '\n') line_end++;
 
-    fprintf(stderr, "%u | %.*s\n", (unsigned)(line + 1),
+    fprintf(stderr, "%u | %.*s\n", (unsigned)(line ),
             (int)(line_end - line_start), line_start);
 
     int prefix_len = snprintf(NULL, 0, "%u | ", (unsigned)(line + 1));
@@ -229,35 +229,36 @@ static void print_source_line(Source *src, uint32_t line,
 
 void msrest_panic(const char *fmt, ...)
 {
+    char msg[1024];
     va_list args;
     va_start(args, fmt);
-
-    fprintf(stderr, "[VM-ERR] ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-
+    vsnprintf(msg, sizeof msg, fmt, args);
     va_end(args);
 
-    /* если знаем ip - показываем координаты в исходнике. */
-    if (vm && g_prog) {
-        const RangeEntry *e = find_range((uint32_t)vm->ip);
-        if (e) {
-            fprintf(stderr, "  at line %u, col %u-%u\n",
-                    (unsigned)e->line + 1,
-                    (unsigned)e->col,
-                    (unsigned)e->end_col);
+    const RangeEntry *e = NULL;
+    if (vm && g_prog) e = find_range((uint32_t)vm->ip);
 
-            Source *src = g_prog->source;
-            if (src) {
-                /* source_text сделает ленивую загрузку, если policy == FILE. */
-                const char *text = source_text(src);
-                if (text) {
-                    print_source_line(src, e->line, e->col, e->end_col);
-                }
+    if (e) {
+        fprintf(stderr, "[VM-ERR] [line %u, col %u-%u] \n",
+                (unsigned)e->line,
+                (unsigned)e->col,
+                (unsigned)e->end_col);
+    } else {
+        fprintf(stderr, "[VM-ERR] ");
+    }
+
+    fprintf(stderr, "%s\n", msg);
+
+    if (e) {
+        Source *src = g_prog->source;
+        if (src) {
+            const char *text = source_text(src);
+            if (text) {
+                print_source_line(src, e->line, e->col, e->end_col);
             }
-        } else {
-            fprintf(stderr, "  at ip = %d (no debug info)\n", vm->ip);
         }
+    } else if (vm) {
+        fprintf(stderr, "  at ip = %d (no debug info)\n", vm->ip);
     }
 
     vm_shutdown(EXIT_FAILURE);
