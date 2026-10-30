@@ -85,6 +85,7 @@ int msrest_execute(Program *prog)
         [0x29] = &&OP_29,
         [0x2A] = &&OP_2A,
 
+        [0x30] = &&OP_30,
         [0x31] = &&OP_31,
         [0x32] = &&OP_32,
         [0x33] = &&OP_33,
@@ -673,6 +674,7 @@ OP_10: {
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
+            break;
         }
         default: {
                 vm->ip = ip - 9;
@@ -721,6 +723,7 @@ OP_11: {
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
+            break;
         }
         default: {
                 vm->ip = ip - 9;
@@ -765,6 +768,7 @@ OP_12: {  // INC_LOCAL <slot> <is_post>
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
+            break;
         }
         default: {
                 vm->ip = ip - 9;
@@ -805,6 +809,7 @@ OP_13: {
             }
             v->floating = next;
             result = float_to_value(ins.arg2 ? old : next);
+            break;
         }
         default: {
                 vm->ip = ip - 9;
@@ -891,7 +896,7 @@ OP_16: {
                 break;
 
             case MSREST_BOOL:
-                result = bool_to_value(a.integer == b.integer);
+                result = bool_to_value(a.logic == b.logic);
                 break;
 
             case MSREST_INT:
@@ -955,7 +960,7 @@ OP_17: {
                 break;
 
             case MSREST_BOOL:
-                result = bool_to_value(a.integer != b.integer);
+                result = bool_to_value(a.logic != b.logic);
                 break;
 
             case MSREST_INT:
@@ -1084,7 +1089,6 @@ OP_1B: {
             // ссылочные типы - сравнение указателей.
             case MSREST_STRING:      result = (a.string == b.string); break;
             case MSREST_ARRAY:       result = (a.array == b.array); break;
-            case MSREST_INT_ARRAY:   result = (a.int_array == b.int_array); break;
             case MSREST_FLOAT_ARRAY: result = (a.float_array == b.float_array); break;
             case MSREST_BOOL_ARRAY:  result = (a.bool_array == b.bool_array); break;
             case MSREST_DICT:        result = (a.dictionary == b.dictionary); break;
@@ -1117,13 +1121,24 @@ OP_1C: {
     #endif
 
     Value v = LPOP();
+    uint32_t mode = ins.arg1;   // 0 = strict BOOL, 1 = BOOL|NULL
 
-    if (__builtin_expect(v.type != MSREST_BOOL, 0)) {        
-        vm->ip = ip - 9;
-        msrest_panic("Type error: 'NOT' expected BOOL type, got %s\n", type_name(v.type));
+    if (mode == 0) {
+        if (__builtin_expect(v.type != MSREST_BOOL, 0)) {
+            vm->ip = ip - 9;
+            msrest_panic("Type error: 'NOT' expected BOOL type, got %s\n", type_name(v.type));
+        }
+        LPUSH(bool_to_value(!v.logic));
+    } else {
+        if (v.type == MSREST_NULL) {
+            LPUSH(bool_to_value(1));
+        } else if (v.type == MSREST_BOOL) {
+            LPUSH(bool_to_value(!v.logic));
+        } else {
+            vm->ip = ip - 9;
+            msrest_panic("Type error: 'NOT' expected BOOL or NULL, got %s\n", type_name(v.type));
+        }
     }
-    Value result = bool_to_value(!value_to_bool(v));
-    LPUSH(result);
 
     #if _PROFILE
     PROF_END();
@@ -1202,6 +1217,23 @@ OP_2A: {
 
     LPUSH(string_to_value(buf));
     free(buf);
+
+    #if _PROFILE
+    PROF_END();
+    #endif
+
+    FETCH();
+    NEXT();
+}
+
+
+OP_30: {
+    #if _PROFILE
+    PROF_START(); // DUP
+    #endif
+
+    stack[sp] = stack[sp - 1];
+    sp++;
 
     #if _PROFILE
     PROF_END();
@@ -1396,47 +1428,44 @@ OP_3B: {
     PROF_START(); // ARR_POP
     #endif
     Value array = LPOP();
-    if(array.type == MSREST_INT_ARRAY){
-        IntArray *arr = array.int_array;
-        if(arr->size == 0) {
-            vm->ip = ip - 9;
-            msrest_panic("Access violation error: Pop from empty INT ARRAY\n");
-        }
-        int64_t value = arr->values[--arr->size];
-        LPUSH(int_to_value(value));
-    }
-    else if(array.type == MSREST_ARRAY){
-        Array *arr = array.array;
-        if(arr->size == 0) {
-            vm->ip = ip - 9;
-            msrest_panic("Access violation error: Pop from empty ARRAY\n");
-        }
-        Value value = arr->values[--arr->size];
-        LPUSH(value);
-    }
-    else if(array.type == MSREST_BOOL_ARRAY) {
-        BoolArray *arr = array.bool_array;
-        if(arr->size == 0) {
-            vm->ip = ip - 9;
-            msrest_panic("Access violation error: Pop from empty BOOL ARRAY\n");
-        }
-        uint8_t value = arr->values[--arr->size];
-        LPUSH(bool_to_value(value));
-    }
-    else if(array.type == MSREST_FLOAT_ARRAY) {
-        FloatArray *arr = array.float_array;
-        if(arr->size == 0) {
-            vm->ip = ip - 9;
-            msrest_panic("Access violation error: Pop from empty FLOAT ARRAY\n");
-        }
-        double value = arr->values[--arr->size];
-        LPUSH(float_to_value(value));
-    }
+    switch (array.type) {
 
-    else {
-        vm->ip = ip - 9;
-        msrest_panic("Type error: 'array pop' expected ARRAY, got %s\n", type_name(array.type));
-    }
+        case MSREST_ARRAY: {
+            Array *arr = array.array;
+            if(arr->size == 0) {
+                vm->ip = ip - 9;
+                msrest_panic("Access violation error: array.pop() from empty ARRAY\n");
+            }
+            Value value = raw_array_pop(arr);
+            LPUSH(value);
+            break;
+        }
+        case MSREST_BOOL_ARRAY: {
+            BoolArray *arr = array.bool_array;
+            if(arr->size == 0) {
+                vm->ip = ip - 9;
+                msrest_panic("Access violation error: array.pop() from empty BOOL ARRAY\n");
+            }
+            uint8_t value = arr->values[--arr->size];
+            LPUSH(bool_to_value(value));
+            break;
+        }
+        case MSREST_FLOAT_ARRAY: {
+            FloatArray *arr = array.float_array;
+            if(arr->size == 0) {
+                vm->ip = ip - 9;
+                msrest_panic("Access violation error: array.pop() from empty FLOAT ARRAY\n");
+            }
+            double value = arr->values[--arr->size];
+            LPUSH(float_to_value(value));
+            break;
+        }
+
+        default: {
+            vm->ip = ip - 9;
+            msrest_panic("Type error: 'array.pop()' expected ARRAY, got %s\n", type_name(array.type));
+        }
+    }   
     #if _PROFILE
     PROF_END();
     #endif
@@ -1481,53 +1510,46 @@ OP_3D: {
     Value key  = LPOP();
     Value cont = LPOP();
 
-    switch (cont.type) {
+    if (cont.type == MSREST_DICT) {
+        if (key.type != MSREST_STRING) {
+            vm->ip = ip - 9;
+            msrest_panic("'dict set' on DICT expects STRING key, got %s\n", type_name(key.type));
+        }
 
+        dict_set(cont, key, val);
+    }
+
+    else if (cont.type == MSREST_STRING) {
+    vm->ip = ip - 9;
+    msrest_panic("Access violation error: Cannot mutate element in string\n");
+}
+else {
+    int64_t raw = value_to_int(key);
+    int64_t idx = norm_index(cont, raw);
+        if (idx == V_MSREST_UNDEFINED) {
+        vm->ip = ip - 9;
+        msrest_panic(
+            "Access violation error: index out of bounds: %lld\n",
+            (long long)raw);
+    }
+
+    switch (cont.type) {
         case MSREST_ARRAY: {
             Array *arr = cont.array;
-            int64_t index = value_to_int(key);
-            arr->values[index] = val;
-            if (vm->gc.phase != GC_IDLE) {
-                mark_value(val);
-            }
+            arr->values[idx] = val;
+            if (vm->gc.phase != GC_IDLE) mark_value(val);
             break;
         }
-        case MSREST_INT_ARRAY: {
-            IntArray *arr = cont.int_array;
-            arr->values[value_to_int(key)] = value_to_int(val);
+        case MSREST_FLOAT_ARRAY:
+            cont.float_array->values[idx] = value_to_double(val);
             break;
-        }
-        case MSREST_FLOAT_ARRAY: {
-            FloatArray *arr = cont.float_array;
-            arr->values[value_to_int(key)] = value_to_double(val);
+        case MSREST_BOOL_ARRAY:
+            cont.bool_array->values[idx] = value_to_int(val);
             break;
-        }
-        case MSREST_BOOL_ARRAY: {
-            BoolArray *arr = cont.bool_array;
-            arr->values[value_to_int(key)] = value_to_int(val);
-            break;
-        }
-
-        case MSREST_STRING: {
-            vm->ip = ip - 9;
-            msrest_panic("Access violation error: Cannot mutate element in string\n");
-        }
-
-        case MSREST_DICT: {
-            if (key.type != MSREST_STRING) {
-                vm->ip = ip - 9;
-                msrest_panic("'CONT_SET' on DICT expects STRING key, got %s\n",
-                             type_name(key.type));
-            }
-            dict_set(cont, key, val);
-            break;
-        }
-
-        default: {
-                vm->ip = ip - 9;
-                msrest_panic("Type error: 'set element' expected ARRAY or DICT, got %s\n",
-                         type_name(cont.type));}
+        default:
+            break; /* недостижимо: norm_index уже отсеял не-массивы */
     }
+}
 
     #if _PROFILE
     PROF_END();
@@ -1538,29 +1560,53 @@ OP_3D: {
 }
 
 
-OP_3E: {  // CONT_GET
+OP_3E: {
     #if _PROFILE
     PROF_START(); // CONT_GET
     #endif
 
-    Value key  = LPOP();
+    Value key = LPOP();
     Value cont = LPOP();
     Value result;
 
     switch (cont.type) {
 
-        case MSREST_ARRAY:
-            result = array_get(cont, value_to_int(key));
+        case MSREST_ARRAY: {
+            int64_t raw = value_to_int(key);
+            int64_t idx = norm_index(cont, raw);
+            if (idx == V_MSREST_UNDEFINED) {
+                vm->ip = ip - 9;
+                msrest_panic(
+                    "Access violation error: Array index out of bounds: %lld\n",
+                    (long long)raw);
+            }
+            result = array_get(cont, (uint32_t)idx);
             break;
-        case MSREST_INT_ARRAY:
-            result = int_to_value(iarray_get(cont, value_to_int(key)));
+        }
+        case MSREST_FLOAT_ARRAY: {
+            int64_t raw = value_to_int(key);
+            int64_t idx = norm_index(cont, raw);
+            if (idx == V_MSREST_UNDEFINED) {
+                vm->ip = ip - 9;
+                msrest_panic(
+                    "Access violation error: FloatArray index out of bounds: %lld\n",
+                    (long long)raw);
+            }
+            result = float_to_value(farray_get(cont, (uint32_t)idx));
             break;
-        case MSREST_FLOAT_ARRAY:
-            result = float_to_value(farray_get(cont, value_to_int(key)));
+        }
+        case MSREST_BOOL_ARRAY: {
+            int64_t raw = value_to_int(key);
+            int64_t idx = norm_index(cont, raw);
+            if (idx == V_MSREST_UNDEFINED) {
+                vm->ip = ip - 9;
+                msrest_panic(
+                    "Access violation error: BoolArray index out of bounds: %lld\n",
+                    (long long)raw);
+            }
+            result = bool_to_value(barray_get(cont, (uint32_t)idx));
             break;
-        case MSREST_BOOL_ARRAY:
-            result = bool_to_value(barray_get(cont, value_to_int(key)));
-            break;
+        }
 
         // неэффективно, ну да ладно.
         // пока что ищем вручную через руны.
@@ -1568,19 +1614,26 @@ OP_3E: {  // CONT_GET
             int64_t index = value_to_int(key);
             String *str = cont.string;
 
+            // Нормализация отрицательного индекса: -1 -> последний, -len -> первый
+            if (index < 0) {
+                index += (int64_t)str->chars;
+            }
+
             if (index < 0 || (uint64_t)index >= str->chars) {
                 vm->ip = ip - 9;
                 msrest_panic(
                     "Access violation error: String index out of bounds: "
-                    "%lld (string length=%u)\n", (long long)index, str->chars);
+                    "%lld (string length=%u, valid range=[-%u, %u])\n",
+                    (long long)index, str->chars, str->chars, str->chars - 1);
             }
 
             size_t pos = 0;
             uint32_t current = 0;
             uint32_t len = str->length;
+
             while (pos < len && current < index) {
                 uint8_t c = (uint8_t)str->data[pos];
-                if      ((c & 0x80) == 0)    pos += 1;
+                if ((c & 0x80) == 0)         pos += 1;
                 else if ((c & 0xE0) == 0xC0) pos += 2;
                 else if ((c & 0xF0) == 0xE0) pos += 3;
                 else if ((c & 0xF8) == 0xF0) pos += 4;
@@ -1590,11 +1643,17 @@ OP_3E: {  // CONT_GET
 
             uint8_t c = (uint8_t)str->data[pos];
             size_t char_bytes;
-            if      ((c & 0x80) == 0)    char_bytes = 1;
-            else if ((c & 0xE0) == 0xC0) char_bytes = 2;
-            else if ((c & 0xF0) == 0xE0) char_bytes = 3;
-            else if ((c & 0xF8) == 0xF0) char_bytes = 4;
-            else                         char_bytes = 1;
+            
+            if ((c & 0x80) == 0) {
+                char_bytes = 1;}
+            else if ((c & 0xE0) == 0xC0) {
+                char_bytes = 2;}
+            else if ((c & 0xF0) == 0xE0) {
+                char_bytes = 3;}
+            else if ((c & 0xF8) == 0xF0) {
+                char_bytes = 4;}
+            else {
+                char_bytes = 1;}
 
             char *tmp = safe_malloc(char_bytes + 1);
             memcpy(tmp, str->data + pos, char_bytes);
@@ -1607,8 +1666,8 @@ OP_3E: {  // CONT_GET
         case MSREST_DICT: {
             if (key.type != MSREST_STRING) {
                 vm->ip = ip - 9;
-                msrest_panic("Type error: 'CONT_GET' on DICT expects STRING key, got %s\n",
-                             type_name(key.type));
+                msrest_panic("Type error: 'dict get' on DICT expects STRING key, got %s\n",
+                    type_name(key.type));
             }
             result = dict_get(cont, key);
             break;
@@ -1617,8 +1676,8 @@ OP_3E: {  // CONT_GET
         default: {         
             vm->ip = ip - 9;   
             msrest_panic("Access violation error: %s object is not indexable\n",
-                         type_name(cont.type));
-                        }
+                type_name(cont.type));
+        }
     }
 
     LPUSH(result);
@@ -1641,7 +1700,6 @@ OP_3F: {
     switch(v.type) {
         case MSREST_ARRAY: result = int_to_value(v.array->size); break;
         case MSREST_STRING: result = int_to_value(v.string->chars); break;
-        case MSREST_INT_ARRAY: result = int_to_value(v.int_array->size); break;
         case MSREST_FLOAT_ARRAY: result = int_to_value(v.float_array->size); break;
         case MSREST_BOOL_ARRAY:  result = int_to_value(v.bool_array->size); break;
         case MSREST_DICT: result = int_to_value(v.dictionary->size); break;
@@ -1693,26 +1751,6 @@ OP_43: {
                 if (vm->gc.phase != GC_IDLE)
                     mark_value(values[i]);}
 
-            break;
-        }
-        case MSREST_INT_ARRAY: {
-            IntArray *arr = arr_val.int_array;
-            uint32_t needed = arr->size + count;
-            
-            if (needed > arr->capacity) {
-                uint32_t new_capacity = arr->capacity ? arr->capacity : 1;
-                while (new_capacity < needed) new_capacity <<= 1;
-                arr->values = safe_realloc(arr->values, sizeof(int64_t) * new_capacity);
-                arr->capacity = new_capacity;
-            }
-
-            int64_t *dest = arr->values + arr->size;
-            
-            for (uint_fast32_t i = 0; i < count; i++) {
-                dest[i] = values[i].integer;
-            }
-            
-            arr->size = needed;
             break;
         }
         case MSREST_FLOAT_ARRAY: {
@@ -1780,23 +1818,6 @@ OP_45: {
     uint32_t count = ins.arg2;
     
     switch(type) {   
-        case 1: {
-            IntArray *arr = gc_alloc(sizeof(IntArray), MSREST_INT_ARRAY);
-            arr->size = count;
-            arr->capacity = (count > 8) ? count : 8;
-            arr->values = safe_malloc(sizeof(int64_t) * arr->capacity);
-            
-            for(int i = count - 1; i >= 0; i--){
-                Value v = LPOP();
-                arr->values[i] = value_to_int(v);
-            }
-            
-            Value v = {0};
-            v.type = MSREST_INT_ARRAY;
-            v.int_array = arr;
-            LPUSH(v);
-            break;
-        }
         case 2: {
             FloatArray *arr = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
             arr->size = count;
@@ -2039,141 +2060,105 @@ OP_68: {
     NEXT();
 }
 
-
 OP_70: {
     #if _PROFILE
     PROF_START(); // ARR_OP
     #endif
-    // TODO рефакторинг
 
     uint32_t op = ins.arg1;
     Value vb = LPOP();
     Value va = LPOP();
-    char result_type = (va.type == MSREST_FLOAT_ARRAY || vb.type == MSREST_FLOAT_ARRAY) ? MSREST_FLOAT_ARRAY : MSREST_INT_ARRAY;
-    uint32_t size_a = (va.type == MSREST_INT_ARRAY) ? va.int_array->size : va.float_array->size;
-    uint32_t size_b = (vb.type == MSREST_INT_ARRAY) ? vb.int_array->size : vb.float_array->size;
-    int min_size = (size_a < size_b) ? size_a : size_b;
-    int max_size = (size_a > size_b) ? size_a : size_b;
 
-    switch(op){
+    // Оба операнда должны быть массивами после удаления IntArray.
+    /*
+                       R . I . P .
+                        IntArray
+                (05.06.26 - 25.10.26)
+            Тип, проигравший своему брату.
+    Слишком тяжело и сложно было тебя поддерживать.
+            FloatArray оказался удобнее.
+    */
+
+    // только FloatArray. Проверяем явно, иначе va.float_array - мусор.
+    if (va.type != MSREST_FLOAT_ARRAY || vb.type != MSREST_FLOAT_ARRAY) {
+        vm->ip = ip - 9;
+        msrest_panic(
+            "ARR_OP expects FLOAT_ARRAY operands, got %s and %s\n",
+            type_name(va.type), type_name(vb.type));
+    }
+
+    uint32_t size_a = va.float_array->size;
+    uint32_t size_b = vb.float_array->size;
+    uint32_t min_size = (size_a < size_b) ? size_a : size_b;
+    uint32_t max_size = (size_a > size_b) ? size_a : size_b;
+
+    switch (op) {
         case 1: { // ADD
-            if(result_type == MSREST_FLOAT_ARRAY) {
-                FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
-                out->size = max_size;
-                out->capacity = (min_size > 8) ? min_size : 8;
-                out->values = safe_malloc(sizeof(double) * out->capacity);
-                for(uint32_t i = 0; i < min_size; i++) {
-                    out->values[i] = farray_get(va, i) + farray_get(vb, i);
-                }
-                for(uint32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = farray_get(va, i);
-                    else
-                        out->values[i] = farray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_FLOAT_ARRAY;
-                result.float_array = out;
-                LPUSH(result);
+            FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
+            out->size = max_size;
+            out->capacity = (max_size > 8) ? max_size : 8;
+            out->values = safe_malloc(sizeof(double) * out->capacity);
+            for (uint32_t i = 0; i < min_size; i++) {
+                out->values[i] = va.float_array->values[i] + vb.float_array->values[i];
             }
-            else {
-                IntArray *out = intarray_new(min_size);
-                out->size = max_size;
-                for(uint_fast32_t i = 0; i < min_size; i++) {
-                    out->values[i] = iarray_get(va, i) + iarray_get(vb, i);
-                }
-                for(uint_fast32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = iarray_get(va, i);
-                    else
-                        out->values[i] = iarray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_INT_ARRAY;
-                result.int_array = out;
-                LPUSH(result);
+            for (uint32_t i = min_size; i < max_size; i++) {
+                if (size_a > size_b)
+                    out->values[i] = va.float_array->values[i];
+                else
+                    out->values[i] = vb.float_array->values[i];
             }
+            Value result = {0};
+            result.type = MSREST_FLOAT_ARRAY;
+            result.float_array = out;
+            LPUSH(result);
             break;
         }
-        
+
         case 2: { // SUB
-            if(result_type == MSREST_FLOAT_ARRAY) {
-                FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
-                out->size = max_size;
-                out->capacity = (min_size > 8) ? min_size : 8;
-                out->values = safe_malloc(sizeof(double) * out->capacity);
-                for(uint_fast32_t i = 0; i < min_size; i++) {
-                    out->values[i] = farray_get(va, i) - farray_get(vb, i);
-                }
-                for(uint_fast32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = farray_get(va, i);
-                    else
-                        out->values[i] = farray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_FLOAT_ARRAY;
-                result.float_array = out;
-                LPUSH(result);
+            FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
+            out->size = max_size;
+            out->capacity = (max_size > 8) ? max_size : 8;
+            out->values = safe_malloc(sizeof(double) * out->capacity);
+            for (uint32_t i = 0; i < min_size; i++) {
+                out->values[i] = va.float_array->values[i] - vb.float_array->values[i];
             }
-            else {
-                IntArray *out = intarray_new(min_size);
-                out->size = max_size;
-                for(uint_fast32_t i = 0; i < min_size; i++) {
-                    out->values[i] = iarray_get(va, i) - iarray_get(vb, i);
-                }
-                for(uint_fast32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = iarray_get(va, i);
-                    else
-                        out->values[i] = iarray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_INT_ARRAY;
-                result.int_array = out;
-                LPUSH(result);
+            for (uint32_t i = min_size; i < max_size; i++) {
+                if (size_a > size_b)
+                    out->values[i] = va.float_array->values[i];
+                else
+                    out->values[i] = vb.float_array->values[i];
             }
+            Value result = {0};
+            result.type = MSREST_FLOAT_ARRAY;
+            result.float_array = out;
+            LPUSH(result);
             break;
         }
-        
+
         case 3: { // MUL
-            if(result_type == MSREST_FLOAT_ARRAY) {
-                FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
-                out->size = max_size;
-                out->capacity = (min_size > 8) ? min_size : 8;
-                out->values = safe_malloc(sizeof(double) * out->capacity);
-                for(uint_fast32_t i = 0; i < min_size; i++) {
-                    out->values[i] = farray_get(va, i) * farray_get(vb, i);
-                }
-                for(uint_fast32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = farray_get(va, i);
-                    else
-                        out->values[i] = farray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_FLOAT_ARRAY;
-                result.float_array = out;
-                LPUSH(result);
+            FloatArray *out = gc_alloc(sizeof(FloatArray), MSREST_FLOAT_ARRAY);
+            out->size = max_size;
+            out->capacity = (max_size > 8) ? max_size : 8;
+            out->values = safe_malloc(sizeof(double) * out->capacity);
+            for (uint32_t i = 0; i < min_size; i++) {
+                out->values[i] = va.float_array->values[i] * vb.float_array->values[i];
             }
-            else {
-                IntArray *out = intarray_new(min_size);
-                out->size = max_size;
-                for(uint_fast32_t i = 0; i < min_size; i++) {
-                    out->values[i] = iarray_get(va, i) * iarray_get(vb, i);
-                }
-                for(uint_fast32_t i = min_size; i < max_size; i++) {
-                    if(size_a > size_b)
-                        out->values[i] = iarray_get(va, i);
-                    else
-                        out->values[i] = iarray_get(vb, i);
-                }
-                Value result;
-                result.type = MSREST_INT_ARRAY;
-                result.int_array = out;
-                LPUSH(result);
+            for (uint32_t i = min_size; i < max_size; i++) {
+                if (size_a > size_b)
+                    out->values[i] = va.float_array->values[i];
+                else
+                    out->values[i] = vb.float_array->values[i];
             }
+            Value result = {0};
+            result.type = MSREST_FLOAT_ARRAY;
+            result.float_array = out;
+            LPUSH(result);
             break;
+        }
+
+        default: {
+            vm->ip = ip - 9;
+            msrest_panic("ARR_OP: unknown op %u\n", op);
         }
     }
 
@@ -2184,7 +2169,6 @@ OP_70: {
     FETCH();
     NEXT();
 }
-
 
 OP_76: {
 
@@ -2337,7 +2321,7 @@ OP_EE: {
     vm->ip = ip;
     vm->sp = sp;
 
-    #if PROFILE
+    #if _PROFILE
 
     fprintf(stderr, "FINAL sp=%d fp=%d fsp=%d\n", sp, vm->fp, vm->fsp);
     for (int i = 0; i < sp; i++) {

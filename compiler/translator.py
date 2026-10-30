@@ -32,6 +32,7 @@ REPLACEMENTS = {
     "PRINT": "28",#0
     "PRINTLN": "29",#0
     "INPUT": "2A", #0
+    "DUP": "30", #0
     "PUSH_BOOL": "31", #1
     "JMP_IF_FALSE": "32", #1
     "JMP": "33", #1

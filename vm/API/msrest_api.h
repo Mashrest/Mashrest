@@ -20,7 +20,6 @@ enum {
     MSREST_STRING,
     MSREST_FLOAT,
     MSREST_DICT,
-    MSREST_INT_ARRAY,
     MSREST_FLOAT_ARRAY,
     MSREST_BOOL_ARRAY,
     MSREST_BOOL,
@@ -35,7 +34,6 @@ enum {
 /* < TYPEDEF > */
 typedef struct Array Array;
 typedef struct String String;
-typedef struct IntArray IntArray;
 typedef struct FloatArray FloatArray;
 typedef struct BoolArray BoolArray;
 typedef struct Value Value;
@@ -53,7 +51,6 @@ struct Value {
         Array *array;
         String *string;
         Dict *dictionary;
-        IntArray *int_array;
         FloatArray *float_array;
         BoolArray *bool_array;
         uint8_t logic;

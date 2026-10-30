@@ -285,6 +285,7 @@ def processing(source, input_file, output_file="output.mrb", source_mode="inline
     policy = source_mode_to_policy(source_mode)
 
     # текст вшиваем только для INLINE. для FILE/NONE — None.
+    # текст вшиваем только для INLINE. для FILE/NONE - None.
     src_bytes = source.encode("utf-8") if policy == SOURCE_POLICY_INLINE else None
 
     byte_result = assemble_final(

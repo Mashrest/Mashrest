@@ -43,6 +43,9 @@ KEYWORDS = {
     "import": "IMP",
     "as": "AS",
     "has": "HAS",
+    "and": "AND",
+    "or": "OR",
+    "not": "NOT",
 
     "flow": "FLOW",
     "return": "RET",
@@ -53,7 +56,6 @@ KEYWORDS = {
 
     "global": "GLOBAL",
     "mutable": "MUT",
-    "-->": "ARR_SUB",
 
 }
 

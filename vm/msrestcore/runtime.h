@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -35,6 +36,7 @@
 #define GC_INTERVAL_BYTES (GC_INTERVAL * 9)
 
 #define MAX_IMPORTS 4096
+#define V_MSREST_UNDEFINED -42
 
 
 /* < ENUM DECLARATIONS > */
@@ -90,7 +92,6 @@ typedef struct GCHeader GCHeader;
 typedef struct Instruction Instruction;
 typedef struct Value Value;
 typedef struct Array Array;
-typedef struct IntArray IntArray;
 typedef struct FloatArray FloatArray;
 typedef struct BoolArray BoolArray;
 typedef struct String String;
@@ -357,7 +358,7 @@ static inline uint8_t value_to_bool(Value v)
 {
     switch(v.type) {
         case MSREST_BOOL:
-            return v.integer != 0;
+            return v.logic != 0;
         case MSREST_INT:
             return v.integer != 0;
         case MSREST_FLOAT:
@@ -405,7 +406,6 @@ _Noreturn void vm_shutdown(int code);
 
 /* Array functions */
 Value array_new(uint32_t capacity);
-IntArray *intarray_new(uint32_t size);
 
 void array_push(Value v, Value value);
 Value array_pop(Value v);
@@ -423,7 +423,6 @@ char *concat_strings(const char *a, const char *b);
 Value native_new(const char *type, void *payload, void (*destroy)(void *));
 void *native_payload(Value value, const char *expected_type);
 
-char* int_array_to_string(IntArray* arr);
 char* float_array_to_string(FloatArray* arr);
 char* bool_array_to_string(BoolArray* arr);
 char* array_to_string(Array* arr);
@@ -450,7 +449,6 @@ static const char* typeof_names[] = {
     [MSREST_BOOL]        = "bool",
     [MSREST_STRING]      = "string",
     [MSREST_ARRAY]       = "array",
-    [MSREST_INT_ARRAY]   = "int_array",
     [MSREST_FLOAT_ARRAY] = "float_array",
     [MSREST_BOOL_ARRAY]  = "bool_array",
     [MSREST_DICT]        = "dict",
@@ -488,6 +486,11 @@ static inline Value pop(VM* vm)
     return vm->stack[--vm->sp];
 }
 
+static inline Value raw_array_pop(Array *arr)
+{
+    return arr->values[--arr->size];
+}
+
 int vm_halt(VM *vm, uint8_t *code, uint32_t code_start, int exit_code, uint32_t instruction_count);
 
 /* Memory functions safe wrappers*/
@@ -496,5 +499,21 @@ void* safe_realloc(void *ptr, size_t new_size);
 void* safe_calloc(size_t count, size_t size);
 char* safe_strdup(const char *s);
 
+static inline int64_t norm_index(Value cont, int64_t raw)
+{
+    uint32_t size;
+
+    switch (cont.type) {
+        case MSREST_ARRAY:       size = cont.array->size;       break;
+        case MSREST_BOOL_ARRAY:  size = cont.bool_array->size;  break;
+        case MSREST_FLOAT_ARRAY: size = cont.float_array->size; break;
+        default: return V_MSREST_UNDEFINED;
+    }
+
+    int64_t idx = raw;
+    if (idx < 0) idx += (int64_t)size;
+    if (idx < 0 || (uint64_t)idx >= size) return V_MSREST_UNDEFINED;
+    return idx;
+}
 
 #endif // RUNTIME_H

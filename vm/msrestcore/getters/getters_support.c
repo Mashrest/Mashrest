@@ -20,26 +20,19 @@ Value array_get(Value obj, uint32_t index)
     return arr->values[index];
 }
 
-int64_t iarray_get(Value obj, int index) 
-{
-    IntArray *arr = obj.int_array;
-    if (index < 0 || index >= arr->size) {
-        msrest_panic("Access violation error: IntArray index out of bounds: %d (size=%d)\n", index, arr->size);}
-    return arr->values[index];
-}
 
-double farray_get(Value obj, int index) 
+double farray_get(Value obj, uint32_t index) 
 {
     FloatArray *arr = obj.float_array;
-    if (index < 0 || index >= arr->size) {
+    if (index >= arr->size) {
         msrest_panic("Access violation error: FloatArray index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
 
-uint8_t barray_get(Value obj, int index) 
+uint8_t barray_get(Value obj, uint32_t index) 
 {
     BoolArray *arr = obj.bool_array;
-    if (index < 0 || index >= arr->size) {
+    if (index >= arr->size) {
         msrest_panic("Access violation error: BoolArray index out of bounds: %d (size=%d)\n", index, arr->size);}
     return arr->values[index];
 }
@@ -51,9 +44,6 @@ uint32_t array_size(Value v)
     {
         case MSREST_ARRAY: {
             return v.array->size;
-        }
-        case MSREST_INT_ARRAY: {
-            return v.int_array->size;
         }
         case MSREST_FLOAT_ARRAY: {
             return v.float_array->size;

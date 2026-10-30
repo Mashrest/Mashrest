@@ -17,7 +17,9 @@ DICT_OPCODES = {
 
 DROP_TYPES = {
     "CALL",
-    "DOUBLECOL"
+    "DOUBLECOL",
+    "AND",
+    "OR",
 }
 
 ARRAY_INT   = 1
@@ -253,7 +255,7 @@ class BytecodeGenerator:
             "SAME": self._handle_binop,
 
             'NEG': self._handle_unop,
-            'NOT': self._handle_unop,
+            "NOT": self._handle_not,
 
             'HAS': self._handle_binop,
 
@@ -684,31 +686,22 @@ class BytecodeGenerator:
             
     def _handle_logical(self, node, op):
         end_label = self.new_label()
-        
+
         self.generate(node["left"])
-        
+        self.emit("DUP")
+
         if op == "AND":
-            short_label = self.new_label()
-            self.emit(f"JMP_IF_FALSE {short_label}")
-            
+            self.emit(f"JMP_IF_FALSE {end_label}")
+            self.emit("DROP")
             self.generate(node["right"])
-            self.emit(f"JMP {end_label}")
-            
-            self.emit(f"LABEL {short_label}")
-            self.emit("PUSH_BOOL 0")
-        
         else:  # OR
-            short_label = self.new_label()
-            self.emit("NOT")
-            self.emit(f"JMP_IF_FALSE {short_label}")
-            
+            self.emit("NOT 1")
+            self.emit(f"JMP_IF_FALSE {end_label}")
+            self.emit("DROP")
             self.generate(node["right"])
-            self.emit(f"JMP {end_label}")
-            
-            self.emit(f"LABEL {short_label}")
-            self.emit("PUSH_BOOL 1")
-        
+
         self.emit(f"LABEL {end_label}")
+
 
     def _handle_push_bool(self, node, _):
         val = node.get("value", 0)
@@ -810,3 +803,7 @@ class BytecodeGenerator:
         elif mode_node.get("type") == "NUMBER":
             mode = int(mode_node["value"])
         self.emit(f"TYPEOF {mode}")
+
+    def _handle_not(self, node, _):
+        self.generate(node["value"])
+        self.emit("NOT 0")

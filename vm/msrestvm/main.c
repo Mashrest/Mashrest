@@ -3,7 +3,7 @@
 #include "../msrestcore/native.h"
 #include "../msrestcore/execute.h"
 
-#define DEBUG 0
+#define _DEBUG 0
 
 /* main launch */
 int main(int argc, char **argv) {
@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     /* VM initialisation */
     vm = vm_create();  // global ptr
     if (!vm) {
-        printf("ERROR: Failed to create VM!\n");
+        printf("ICE ERROR: Failed to create VM!\n");
         return 1;
     }
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     /* Program loader */
     Program *prog = load_program(argv[1]);
     if (!prog) {
-        printf("ERROR: Failed to load program!\n");
+        printf("ICE ERROR: Failed to load program!\n");
         vm_destroy(vm);
         return 1;
     }
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     vm->ip  = prog->code_start;
 
 /* time-debug: only under DEBUG */
-#ifdef DEBUG
+#ifdef _DEBUG
     LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     /* executing! */
     int r = msrest_execute(prog);
 
-#ifdef DEBUG
+#ifdef _DEBUG
     QueryPerformanceCounter(&end);
 
     /* statistics */

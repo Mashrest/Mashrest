@@ -11,7 +11,6 @@ static const char* type_names[] = {
     [MSREST_BOOL]        = "BOOL",
     [MSREST_STRING]      = "STRING",
     [MSREST_ARRAY]       = "ARRAY",
-    [MSREST_INT_ARRAY]   = "INT_ARRAY",
     [MSREST_FLOAT_ARRAY] = "FLOAT_ARRAY",
     [MSREST_BOOL_ARRAY]  = "BOOL_ARRAY",
     [MSREST_DICT]        = "DICT",
@@ -54,24 +53,17 @@ struct Array {
     Value *values;
 };
 
-struct IntArray {
-    GCHeader gc;
-    int size;
-    int capacity;
-    int64_t* values;
-};
-
 struct BoolArray {
     GCHeader gc;
-    int size;
-    int capacity;
+    uint32_t size;
+    uint32_t capacity;
     uint8_t* values;
 };
 
 struct FloatArray {
     GCHeader gc;
-    int size;
-    int capacity;
+    uint32_t size;
+    uint32_t capacity;
     double *values;
 };
 

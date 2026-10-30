@@ -442,16 +442,6 @@ void mark_value(Value v)
             }
             break;
         }
-        case MSREST_INT_ARRAY:
-        {
-            GCHeader *obj = (GCHeader*)v.int_array;
-            if (obj->color == GC_WHITE)
-            {
-                obj->color = GC_GRAY;
-                gc_push_gray(obj);
-            }
-            break;
-        }
         case MSREST_FLOAT_ARRAY:
         {
             GCHeader *obj = (GCHeader*)v.float_array;
@@ -623,13 +613,6 @@ void gc_sweep_step(int budget)
                     free(dead);
                     break;
                 }
-                case MSREST_INT_ARRAY: {
-                    IntArray *a = (IntArray*)dead;
-
-                    free(a->values);
-                    free(dead);
-                    break;
-                }
                 case MSREST_FLOAT_ARRAY: {
                     FloatArray *a = (FloatArray*)dead;
 
@@ -736,13 +719,6 @@ Value string_to_value(const char *s)
     return v;
 }
 
-IntArray *intarray_new(uint32_t size) {
-    IntArray *arr = gc_alloc(sizeof(IntArray), MSREST_INT_ARRAY);
-    arr->size = size;
-    arr->capacity = (size > 8) ? size : 8;
-    arr->values = safe_malloc(sizeof(int64_t) * arr->capacity);
-    return arr;
-}
 
 Value array_new(uint32_t size)
 {
@@ -772,7 +748,7 @@ int array_index_check(Value v, uint32_t index)
     if (v.type != MSREST_ARRAY)
         msrest_panic("[lib] Type error: Expected array");
 
-    return index >= 0 && index < v.array->size;
+    return index < v.array->size;
 }
 
 
@@ -1067,16 +1043,16 @@ uint32_t dict_size(Value dict_val) {
 void array_set(Value v, uint32_t index, Value value)
 {
     if (v.type != MSREST_ARRAY)
-        msrest_panic("Type error: Expected array");
-    if (index < 0 || index >= v.array->size)
-        msrest_panic("Access violation error: Array index out of range");
+        msrest_panic("[lib] Type error: Expected array");
+    if (index >= v.array->size)
+        msrest_panic("[lib] Access violation error: Array index out of range");
     v.array->values[index] = value;
 }
 
 void array_push(Value array, Value value)
 {
     if (array.type != MSREST_ARRAY)
-        msrest_panic("Type error: Expected array");
+        msrest_panic("[lib] Type error: Expected array");
 
     Array *arr = array.array;
     if (arr->size >= arr->capacity) {
@@ -1089,11 +1065,12 @@ void array_push(Value array, Value value)
 Value array_pop(Value v)
 {
     if (v.type != MSREST_ARRAY)
-        msrest_panic("Type error: Expected array");
+        msrest_panic("[lib] Type error: Expected array");
     if (__builtin_expect(v.array->size == 0, 0))
-        msrest_panic("Access violation error: Array is empty");
+        msrest_panic("[lib] Access violation error: Array is empty");
     return v.array->values[--v.array->size];
 }
+
 
 
 
@@ -1132,9 +1109,6 @@ uint8_t value_equals(Value a, Value b)
         }
         case MSREST_ARRAY: {
             return a.array == b.array;
-        }
-        case MSREST_INT_ARRAY: {
-            return a.int_array == b.int_array;
         }
         case MSREST_FLOAT_ARRAY: {
             return a.float_array == b.float_array;
@@ -1220,9 +1194,6 @@ char* value_to_string(Value v) {
             snprintf(buffer, sizeof(buffer), "<fnref (argc: %d)>", v.fnref.arity);
             result = safe_strdup(buffer);
             break;
-        case MSREST_INT_ARRAY:
-            result = int_array_to_string(v.int_array);
-            break;
         case MSREST_FLOAT_ARRAY:
             result = float_array_to_string(v.float_array);
             break;
@@ -1259,33 +1230,6 @@ char *concat_strings(const char *a, const char *b) {
 
 
 
-/* Конвертирует IntArray в строку */
-char* int_array_to_string(IntArray* arr) 
-{
-    if (!arr) return safe_strdup("null");
-    if (arr->size == 0) return safe_strdup("[]");
-    
-    // оцениваем размер: [ + элементы + ", " + ].
-    size_t estimated = 2; // для '[' и ']'
-    for (int i = 0; i < arr->size; i++) {
-        estimated += 22; // максимум для 64-битного числа.
-        if (i < arr->size - 1) estimated += 2; // для ", ".
-    }
-    
-    char* result = safe_malloc(estimated);
-    char* ptr = result;
-    ptr += sprintf(ptr, "[");
-    
-    for (int i = 0; i < arr->size; i++) {
-        ptr += sprintf(ptr, "%lld", (long long)arr->values[i]);
-        if (i < arr->size - 1) {
-            ptr += sprintf(ptr, ", ");
-        }
-    }
-    
-    ptr += sprintf(ptr, "]");
-    return result;
-}
 
 /* Конвертирует FloatArray в строку */
 char* float_array_to_string(FloatArray* arr) 
@@ -1295,7 +1239,7 @@ char* float_array_to_string(FloatArray* arr)
     
     size_t estimated = 2;
     for (int i = 0; i < arr->size; i++) {
-        estimated += 64; // достаточно для float
+        estimated += 64; // достаточно для float.
         if (i < arr->size - 1) estimated += 2;
     }
     
@@ -1611,7 +1555,7 @@ Program* load_program(const char *filename) {
     prog->constant_pool = constant_pool;
     prog->constant_count = constant_count;
 
-    /* таблица диапазонов — опциональная секция. */
+    /* таблица диапазонов - опциональная секция. */
     prog->ranges = NULL;
     prog->range_count = 0;
 
@@ -1675,7 +1619,7 @@ int Mvalidate_program_opcodes(Program *prog)
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 
         0x1B, 0x1C,
         0x28, 0x29, 0x2A,
-        0x31, 0x32, 0x33,
+        0X30, 0x31, 0x32, 0x33,
         0x34, 0x35, 0x36, 0x37, 0x38,
         0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45,
         0x4B, 0x4C, 0x4D, 0x4E,
@@ -1720,7 +1664,7 @@ int Mvalidate_program_opcodes(Program *prog)
         }
         
         if (pos + 9 > code_end) {
-            printf(" Warning: Incomplete instruction at offset 0x%X\n", pos);
+            printf("ICE Warning: Incomplete instruction at offset 0x%X\n", pos);
             break;
         }
         
@@ -1729,7 +1673,7 @@ int Mvalidate_program_opcodes(Program *prog)
         
         if (!opcode_map[opcode]) {
             invalid_count++;
-            printf("  INVALID OPCODE: 0x%02X (%d) at offset 0x%X (instruction #%d)\n", 
+            printf("ICE INVALID OPCODE: 0x%02X (%d) at offset 0x%X (instruction #%d)\n", 
                    opcode, opcode, pos, total_instructions - 1);
             printf("\n");
         }
@@ -1851,7 +1795,6 @@ void vm_print_offsets(void) {
     printf("  floating:%zu (0x%zX)\n", offsetof(Value, floating), offsetof(Value, floating));
     printf("  string:  %zu (0x%zX)\n", offsetof(Value, string), offsetof(Value, string));
     printf("  array:   %zu (0x%zX)\n", offsetof(Value, array), offsetof(Value, array));
-    printf("  int_array:%zu (0x%zX)\n", offsetof(Value, int_array), offsetof(Value, int_array));
     printf("  float_array:%zu (0x%zX)\n", offsetof(Value, float_array), offsetof(Value, float_array));
     printf("  bool_array:%zu (0x%zX)\n", offsetof(Value, bool_array), offsetof(Value, bool_array));
     printf("  native:  %zu (0x%zX)\n", offsetof(Value, native), offsetof(Value, native));

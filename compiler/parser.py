@@ -91,8 +91,17 @@ def print_tree(node: dict, indent: int=0):
         print(" " * indent + "PIPE_ARG" + pos_str(node))
         print_tree(node["value"], indent + 4)
         return
-
     
+    if node["type"] == "DECLARED_TYPE":
+        args = node.get("args", [])
+        if args:
+            print(" " * indent + f"DECLARED_TYPE {node['name']}<...>" + pos_str(node))
+            for a in args:
+                print_tree(a, indent + 4)
+        else:
+            print(" " * indent + f"DECLARED_TYPE {node['name']}" + pos_str(node))
+        return
+        
     # словарь.
     if node["type"] == "DICT":
         print(" " * indent + f"DICT" + pos_str(node))
@@ -137,6 +146,9 @@ def print_tree(node: dict, indent: int=0):
     if node["type"] in ("VAR", "CONST"):
         print(" " * indent + node["type"] + pos_str(node))
         print(" " * (indent + 4) + f"name: {node['name']}")
+        if node.get("declared_type"):
+            print(" " * (indent + 4) + "declared_type:")
+            print_tree(node["declared_type"], indent + 8)
         print_tree(node["value"], indent + 4)
         return
     
@@ -358,24 +370,49 @@ class Parser:
         if not self.check(expected_type):
             token = self.cur()
             if token is None:
-                # создаем выдуманный токен для EOF.
-                class DummyToken:
-                    def __init__(self):
-                        self.col = 0
-                        self.line = 0
-                        self.dtype = "EOF"
-                        self.text = "EOF"
-                token = DummyToken()
-                self.error(token, f"Expacted {expected_type}, got EOF")
+                self.error(None, f"Unexpected end of file: expected {self._humanize(expected_type)}")
             else:
-                self.error(token, f"Expected {expected_type}, got {token.dtype}")
+                self.error(token,
+                    f"Expected {self._humanize(expected_type)}, "
+                    f"got {self._humanize(token.dtype, token.text)}")
             return
         self.next()
     
     def seek(self):
         if self.pos + 1 >= len(self.tokens):
             return None
-        return self.tokens[self.pos + 1]
+        return self.tokens[self.pos +
+                            1]
+
+    def expect_rduck(self, context="type"):
+        # ожидает один '>'. Если видит SHR '>>', расщепляет его на два RDUCK:
+        # съедает SHR, превращает текущий токен в RDUCK и вставляет второй RDUCK после.
+        tok = self.cur()
+        if tok is None:
+            self.error(tok, f"Expected '>' in {context}, got EOF")
+            return
+        if tok.dtype == "RDUCK":
+            self.next()
+            return
+        if tok.dtype == "SHR":
+            # превращаем SHR в первый RDUCK, второй вставляем сразу после.
+            tok.dtype = "RDUCK"
+            tok.text = ">"
+            # создаём копию для второго '>'.
+            class _T: pass
+            t2 = _T()
+            t2.dtype = "RDUCK"
+            t2.text = ">"
+            t2.line = tok.line
+            t2.col = tok.col + 1
+            t2.value = None
+            self.tokens.insert(self.pos + 1, t2)
+            self.next()
+            return
+        self.error(tok, f"Expected '>' in {context}, got {tok.dtype} ('{tok.text}')")
+        # увы.
+
+
 
     def parse_program(self):
         body = []
@@ -531,7 +568,57 @@ class Parser:
             "col": token.col if token else 0,
         }
 
-    
+
+
+
+
+    TOKEN_HUMAN = {
+        # скобки и пунктуация.
+        "LPAREN": "'('", "RPAREN": "')'",
+        "LBRACKET": "'['", "RBRACKET": "']'",
+        "LBRACE": "'{'", "RBRACE": "'}'",
+        "LDUCK": "'<'", "RDUCK": "'>'",
+        "COMMA": "','", "COLON": "':'", "DOT": "'.'",
+        "EQUAL": "'='", "EQEQ": "'=='", "NOTEQ": "'!='",
+        "LE": "'<='", "GE": "'>='",
+        "PLUS": "'+'", "MINUS": "'-'", "STAR": "'*'", "SLASH": "'/'",
+        "PERCENT": "'%'", "IDIV": "'\\\\'",
+        "SHL": "'<<'", "SHR": "'>>'",
+        "OR": "'||'", "AND": "'&&'", "NOT": "'!'",
+        "INC": "'++'", "DEC": "'--'",
+        "DOUBLECOL": "'::'", "ARROW": "'->'",
+        "PLUS-EQ": "'+='", "MINUS-EQ": "'-='", "MUL-EQ": "'*='",
+        "DIV-EQ": "'/='", "PERCENT-EQ": "'%='",
+
+        # литералы и имена.
+        "ID": "имя",
+        "NUMBER": "целое число",
+        "FLOAT": "дробное число",
+        "STRING": "строка",
+
+        # структура.
+        "NEWLINE": "конец строки",
+        "INDENT": "отступ",
+        "DEDENT": "конец блока (уменьшение отступа)",
+        "EOF": "конец файла",
+
+        # ключевые слова.
+        "VAR": "'var'", "CONST": "'const'",
+        "IF": "'if'", "ELSE": "'else'", "ELIF": "'elif'",
+        "WHILE": "'while'", "FLOW": "'flow'", "RET": "'return'",
+        "BREAK": "'break'", "PASS": "'pass'", "CNT": "'continue'",
+        "IMP": "'import'", "AS": "'as'", "HAS": "'has'",
+        "GLOBAL": "'global'", "MUT": "'mutable'",
+        "NULL": "'null'", "BOOL": "логическое значение",
+    }
+
+    def _humanize(self, dtype, text=None):
+        # человеческое имя токена для сообщений об ошибках.
+        if dtype in self.TOKEN_HUMAN:
+            return self.TOKEN_HUMAN[dtype]
+        if text:
+            return f"'{text}'"
+        return dtype
 
     def parse_assigment(self):
         if self.check("ID"):
@@ -1102,62 +1189,58 @@ class Parser:
 
     def parse_var(self):
         self.eat("VAR")
-
         if not self.check("ID"):
             return self.error_node(self.cur(), "Expected variable name")
-
         name_token = self.cur()
         name = name_token.text
         self.eat("ID")
 
-        # проверяем, есть ли присваивание.
+        declared_type = None
+        if self.check("LDUCK"):
+            declared_type = self.parse_declared_type()
+
         if self.check("EQUAL"):
             self.eat("EQUAL")
             value = self.parse_or()
         else:
-            # если нет '=', подставляем NULL.
-            value = {
-                "type": "NULL",
-                "line": name_token.line,
-                "col": name_token.col + len(name) + 1  # примерная позиция (TODO разобраться).
-            }
+            value = {"type": "NULL", "line": name_token.line,
+                    "col": name_token.col + len(name) + 1}
 
         return {
             "type": "VAR",
             "name": name,
+            "declared_type": declared_type,
             "value": value,
             "line": name_token.line,
-            "col": name_token.col
+            "col": name_token.col,
         }
-
+    
     def parse_const(self):
         self.eat("CONST")
-
         if not self.check("ID"):
             return self.error_node(self.cur(), "Expected constant name")
-
         name_token = self.cur()
         name = name_token.text
         self.eat("ID")
-        
-        # также как и с переменной.
+
+        declared_type = None
+        if self.check("LDUCK"):
+            declared_type = self.parse_declared_type()
+
         if self.check("EQUAL"):
             self.eat("EQUAL")
             value = self.parse_or()
         else:
-            # Если нет '=', подставляем NULL.
-            value = {
-                "type": "NULL",
-                "line": name_token.line,
-                "col": name_token.col + len(name) + 1
-            }
+            value = {"type": "NULL", "line": name_token.line,
+                    "col": name_token.col + len(name) + 1}
 
         return {
             "type": "CONST",
             "name": name,
+            "declared_type": declared_type,
             "value": value,
             "line": name_token.line,
-            "col": name_token.col
+            "col": name_token.col,
         }
 
 
@@ -1348,11 +1431,9 @@ class Parser:
         self.eat("PASS")
         return {"type": "PASS", "line": token.line, "col": token.col, "end_col": token.col + len(token.text)}
     
-    
     def parse_flow(self):
         flowtoken = self.cur()
         self.eat("FLOW")
-
         func_name = self.cur().text
         self.eat("ID")
         self.eat("LPAREN")
@@ -1362,33 +1443,47 @@ class Parser:
             token = self.cur()
             if not self.check("ID"):
                 return self.error_node(self.cur(), "Expected parameter name")
-            params.append({"type": "param",
-                    "value": token.text,
-                    "line": token.line,
-                    "col": token.col})
+            pname = token.text
             self.eat("ID")
+            ptype = None
+            if self.check("LDUCK"):
+                ptype = self.parse_declared_type()
+            params.append({"type": "param", "value": pname, "declared_type": ptype,
+                        "line": token.line, "col": token.col,
+                        "end_col": token.col + len(pname)})
 
             while self.check("COMMA"):
                 self.eat("COMMA")
                 if not self.check("ID"):
                     return self.error_node(self.cur(), "Expected parameter name")
                 token = self.cur()
-                params.append({"type": "param",
-                    "value": token.text,
-                    "line": token.line,
-                    "col": token.col,
-                    "end_col": token.col + len(token.text)})
+                pname = token.text
                 self.eat("ID")
+                ptype = None
+                if self.check("LDUCK"):
+                    ptype = self.parse_declared_type()
+                params.append({"type": "param", "value": pname, "declared_type": ptype,
+                            "line": token.line, "col": token.col,
+                            "end_col": token.col + len(pname)})
 
         self.eat("RPAREN")
+
+        ret_type = None
+        if self.check("ARROW"):
+            self.eat("ARROW")
+            if self.check("LDUCK"):
+                ret_type = self.parse_declared_type()
+            else:
+                self.error(self.cur(), "Expected '<type>' after '->'")
+        elif self.check("LDUCK"):
+            ret_type = self.parse_declared_type()
+
         body = self.parse_block()
 
-        return {"type": "FLOW",
-                "name": func_name,
-                "params": params,
-                "body": body,
-                "line": flowtoken.line,
-                "col": flowtoken.col}
+        return {"type": "FLOW", "name": func_name, "params": params,
+                "ret_type": ret_type, "body": body,
+                "line": flowtoken.line, "col": flowtoken.col}
+
     
     
     def parse_return(self):
@@ -1465,12 +1560,7 @@ class Parser:
         self.eat("RBRACKET")
         self.in_brackets -= 1
         arrtype = "a"
-        
-        if self.check("IDK"):
-            self.eat("IDK")
-            if self.cur() is not None and self.cur().text in ("f", "i", "b"):
-                arrtype = self.cur().text
-                self.eat("ID")
+    
 
         return {
             "type": "ARRAY",
@@ -1590,3 +1680,51 @@ class Parser:
     def skip_newlines(self):
         while self.check("NEWLINE"):
             self.eat(self.cur().dtype)
+
+
+    def parse_declared_type(self):
+        tok = self.cur()
+        if tok is None or tok.dtype != "LDUCK":
+            self.error(tok, "Expected '<' to start type annotation")
+            return None
+        self.eat("LDUCK")
+        node = self.parse_type_expr()
+        self.expect_rduck("type annotation")
+        return node
+
+
+    def parse_type_expr(self):
+        tok = self.cur()
+        if tok is None:
+            return self.error_node(tok, "Expected type name, got EOF")
+        if tok.dtype == "ID":
+            name = tok.text
+            self.eat("ID")
+        elif tok.dtype == "NULL":
+            name = "null"
+            self.eat("NULL")
+        else:
+            return self.error_node(tok, f"Expected type name, got {tok.dtype}")
+
+        args = []
+
+        if self.check("LDUCK"):
+            self.eat("LDUCK")
+            args.append(self.parse_type_expr())
+            while self.check("COMMA"):
+                self.eat("COMMA")
+                args.append(self.parse_type_expr())
+            self.expect_rduck("type arguments")
+
+        elif self.check("COLON"):
+            self.eat("COLON")
+            args.append(self.parse_type_expr())
+
+        return {
+            "type": "DECLARED_TYPE",
+            "name": name,
+            "args": args,
+            "line": tok.line,
+            "col": tok.col,
+            "end_col": tok.col + len(name),
+        }

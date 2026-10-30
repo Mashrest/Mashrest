@@ -56,6 +56,7 @@ def wrap_with_headers(code_bytes,
     result.append(0)   # flags, зарезервировано.
 
     # SOURCE — всегда. len=0, если исходник не вшит.
+    # SOURCE - всегда. len=0, если исходник не вшит.
     result.extend(b'\xE1' * 9)
     if source_bytes:
         result.extend(len(source_bytes).to_bytes(4, "little"))

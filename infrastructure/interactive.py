@@ -36,15 +36,15 @@ LANGUAGES = {
         "overloads": "Перегрузки:",
         "variant": "Вариант",
         "optional": "необязательный, по умолчанию",
-        "return_hint": "'return' — назад, 'exit' — выход.",
+        "return_hint": "'return' - назад, 'exit' - выход.",
         "only_return_exit": "Доступно: 'return' или 'exit'.",
         "no_modules": "Не найдено модулей в {path}",
         "load_error": "[!] Не удалось загрузить {name}: {err}",
         "help_title": "Доступные команды:",
-        "help_exit": "  exit — выход из программы",
-        "help_return": "  return — вернуться на уровень выше",
-        "help_help": "  help — показать эту справку",
-        "help_lang": "  lang <ru|en> — сменить язык",
+        "help_exit": "  exit - выход из программы",
+        "help_return": "  return - вернуться на уровень выше",
+        "help_help": "  help - показать эту справку",
+        "help_lang": "  lang <ru|en> - сменить язык",
         "help_lang_current": "Текущий язык: {lang}",
         "lang_available": "Доступные языки: {available}",
         "lang_changed": "Язык изменён на: {lang}",
@@ -70,15 +70,15 @@ LANGUAGES = {
         "overloads": "Overloads:",
         "variant": "Variant",
         "optional": "optional, default",
-        "return_hint": "'return' — back, 'exit' — quit.",
+        "return_hint": "'return' - back, 'exit' - quit.",
         "only_return_exit": "Available: 'return' or 'exit'.",
         "no_modules": "No modules found in {path}",
         "load_error": "[!] Failed to load {name}: {err}",
         "help_title": "Available commands:",
-        "help_exit": "  exit — quit the program",
-        "help_return": "  return — go back one level",
-        "help_help": "  help — show this help",
-        "help_lang": "  lang <ru|en> — switch language",
+        "help_exit": "  exit - quit the program",
+        "help_return": "  return - go back one level",
+        "help_help": "  help - show this help",
+        "help_lang": "  lang <ru|en> - switch language",
         "help_lang_current": "Current language: {lang}",
         "lang_available": "Available languages: {available}",
         "lang_changed": "Language changed to: {lang}",
@@ -177,7 +177,7 @@ def show_help():
 
 def print_page_footer(page, pages):
     if pages > 1:
-        print(f"\n  {t('page')} {page + 1}/{pages}   (<  >  — {t('page_nav')})")
+        print(f"\n  {t('page')} {page + 1}/{pages}   (<  >  - {t('page_nav')})")
 
 
 def show_modules(mods, page=0):
@@ -244,7 +244,7 @@ def print_args(args, types):
 def show_function(fname, fdata, mod_name, types):
     print("\n" + t("function_label") + " " + fname)
     print(t("module_label") + "  " + mod_name)
-    print(t("description") + ": " + (tr_field(fdata.get("description")) or "—"))
+    print(t("description") + ": " + (tr_field(fdata.get("description")) or "-"))
 
     if "overloads" in fdata:
         print("\n" + t("overloads"))

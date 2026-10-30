@@ -103,6 +103,7 @@ class SemanticAnalysis(SemanticBase):
             return {"DICT"}
 
         if node_type in ("ARRAY", "BOOLARRAY", "INTARRAY", "FLOATARRAY"):
+        if node_type in ("ARRAY", "BOOLARRAY", "FLOATARRAY"):
             return {node_type}
         
         if node_type == "ID":
@@ -140,7 +141,6 @@ class SemanticAnalysis(SemanticBase):
             arr_t = self.get_operand_type(node["array"])
             result = set()
             if "BOOLARRAY" in arr_t: result.add("BOOL")
-            if "INTARRAY" in arr_t:  result.add("NUMBER")
             if "FLOATARRAY" in arr_t: result.add("FLOAT")
             # dict/string/any - элемент неизвестен.
             if "DICT" in arr_t or "STRING" in arr_t or "ARRAY" in arr_t or "ANY" in arr_t or not result:
@@ -172,23 +172,52 @@ class SemanticAnalysis(SemanticBase):
             if stmt.get("type") == "FLOW":
                 name = stmt.get("name")
                 params = stmt.get("params", [])
-                
+
                 if name in self.functions:
                     existing = self.functions[name]
                     self.error(f"Function '{name}' is already declared", stmt,
                             note_node=existing.get("node"))
                     continue
-                
+
+                param_types = []
+                for p in params:
+                    declared = p.get("declared_type")
+                    if declared is not None:
+                        if not self._validate_declared_type(declared):
+                            param_types.append({"ERROR"})
+                        else:
+                            pset, _ = self._resolve_declared_type(declared)
+                            param_types.append(pset)
+                    else:
+                        param_types.append(None)
+
+                ret_decl = stmt.get("ret_type")
+                if ret_decl is not None:
+                    if not self._validate_declared_type(ret_decl):
+                        ret_set = {"ERROR"}
+                    else:
+                        ret_set, _ = self._resolve_declared_type(ret_decl)
+                else:
+                    ret_set = None
+
+                ret_decl = stmt.get("ret_type")
+                if ret_decl is not None:
+                    ret_set, _ = self._resolve_declared_type(ret_decl)
+                else:
+                    ret_set = None
+
                 self.functions[name] = {
                     "type": "FUNCTION",
                     "node": stmt,
                     "params": [p.get("value") for p in params],
-                    "return_type": {"ANY"},
+                    "param_types": param_types,      # list[set|None]
+                    "declared_ret_type": ret_decl,   # узел или None
+                    "declared_ret_set": ret_set,     # set или None
+                    "return_type": ret_set if ret_set is not None else {"ANY"},
                     "scope_name": "global",
                     "usage": 0,
                     "error_data": {"last_used_at": None},
                 }
-
 
 
 
@@ -331,6 +360,18 @@ class SemanticAnalysis(SemanticBase):
             self.error(message, combined_node)
         
         # определяем тип массива.
+        # вывод типа массива по содержимому, если array_type не задан явно.
+        if array_type == 'a' and not has_errors:
+            kinds = set()
+            for item in items:
+                kinds |= self.get_operand_type(item)
+            kinds.discard("ANY")
+            kinds.discard("ERROR")
+            if kinds and kinds <= {"BOOL", "NULL"}:
+                array_type = 'b'
+            elif kinds and "FLOAT" in kinds and kinds <= {"NUMBER", "FLOAT"}:
+                array_type = 'f'
+
         node["type"] = self._array_type_to_type(array_type)
         self._annotate(node, {node["type"]})
 
@@ -431,45 +472,58 @@ class SemanticAnalysis(SemanticBase):
     def check_assign(self, node: dict):
         left = node["left"]
         right = node["right"]
-        
+
         self.check(right)
         right_type = self.get_operand_type(right)
-        
+
         if left["type"] == "ID":
             name = left["value"]
             info, kind = self.lookup(name)
-            
+
             if info is None:
                 self.error(f"Variable '{name}' is not declared", left)
                 return
-            
-            #  проверяем, не глобальная ли это ссылка
+
             if info.get("is_global_ref", False):
                 self.error(f"Cannot assign to global variable '{name}' (read-only in function)", left)
                 return
-            
+
             if info.get("readonly", False):
                 self.error(f"The constant '{name}' cannot be reassigned", left)
                 return
-            
+
             if "alias" not in left:
                 alias = self.get_alias_for(name)
                 if alias is None:
                     scope_path = self.get_scope_path()
                     alias = f"{scope_path}${name}"
                 left["alias"] = alias
-            
-            info["type"] = right_type
 
-            self._annotate(left, right_type)
-            self._annotate(node, right_type)
+            declared_set = info.get("declared_type_set")
+            if declared_set is not None:
+                # строгий режим: проверяем против declared_type, type не трогаем.
+                if not self._is_assignable(right_type, declared_set):
+                    note_node = info.get("node")
+                    self.error(
+                        f"Cannot assign {self._format_type(right_type)} to variable '{name}' "
+                        f"of declared type {self._format_type(declared_set)}",
+                        right, note_node=note_node, note_kind="declared")
+                    return
+                # info["type"] уже = declared_set, ничего не меняем.
+                assigned_type = declared_set
+            else:
+                # мягкий режим: перезаписываем type, как раньше.
+                info["type"] = right_type
+                assigned_type = right_type
+
+            self._annotate(left, assigned_type)
+            self._annotate(node, assigned_type)
 
             info["error_data"]["initialized"] = True
             info["error_data"]["last_assigned_at"] = node
             info["error_data"]["modified_at"].append(node)
         else:
             self.check(left)
-
 
     def check_unary(self, node: dict):
         self.check(node["value"])
@@ -566,6 +620,7 @@ class SemanticAnalysis(SemanticBase):
             rtform = self._format_type(rt)
 
             good_types = {"ARRAY", "BOOLARRAY", "FLOATARRAY", "INTARRAY",
+            good_types = {"ARRAY", "BOOLARRAY", "FLOATARRAY",
                         "DICT", "STRING", "FNREF", "ANY"}
             bad_types  = {"NUMBER", "FLOAT", "BOOL", "NULL"}
 
@@ -718,7 +773,6 @@ class SemanticAnalysis(SemanticBase):
 
 
         if "BOOLARRAY" in arr_t: res = {"BOOL"}
-        elif "INTARRAY" in arr_t: res = {"NUMBER"}
         elif "FLOATARRAY" in arr_t: res = {"FLOAT"}
         else: res = {"ANY"}
         self._annotate(node, res)
@@ -746,13 +800,6 @@ class SemanticAnalysis(SemanticBase):
             note_node, note_kind = self._get_note_for_id(right)
             self.error(
                 f"Cannot assign {self._format_type(right_type)} to element of BOOLARRAY",
-                right, note_node=note_node, note_kind=note_kind)
-            return
-        
-        if "INTARRAY" in arr_t and not (right_type & {"NUMBER"}):
-            note_node, note_kind = self._get_note_for_id(right)
-            self.error(
-                f"Cannot assign {self._format_type(right_type)} to element of INTARRAY",
                 right, note_node=note_node, note_kind=note_kind)
             return
         
@@ -837,7 +884,6 @@ class SemanticAnalysis(SemanticBase):
             self.error(f"'pop' takes no arguments, got {argslen}", obj)
             # pop возвращает элемент массива.
         if "BOOLARRAY" in obj_type:     self._annotate(node, {"BOOL"})
-        elif "INTARRAY" in obj_type:    self._annotate(node, {"NUMBER"})
         elif "FLOATARRAY" in obj_type:  self._annotate(node, {"FLOAT"})
         else:                           self._annotate(node, {"ANY"})
 
@@ -1148,8 +1194,16 @@ class SemanticAnalysis(SemanticBase):
                 self.error(f"Parameter '{param_name}' declared twice in function '{name}'", param)
                 continue
             param["alias"] = f"func_{name}${param_name}"
+
+            declared = param.get("declared_type")
+            declared_set = None
+            if declared is not None:
+                declared_set, _ = self._resolve_declared_type(declared)
+
             self.current_scope().variables[param_name] = {
-                "type": {"ANY"},
+                "type": declared_set if declared_set is not None else {"ANY"},
+                "declared_type": declared,
+                "declared_type_set": declared_set,
                 "node": param,
                 "usage": 0,
                 "readonly": False,
@@ -1161,7 +1215,6 @@ class SemanticAnalysis(SemanticBase):
                     "modified_at": [],
                 },
             }
-
         for stmt in body:
             self.check(stmt)
 
@@ -1213,7 +1266,10 @@ class SemanticAnalysis(SemanticBase):
         argslen = len(args)
         if argslen != expected_len:
             self.error(
-                f"Function '{func_name}' expects {expected_len} arguments, got {argslen}", node)
+                f"Function '{func_name}' expects {expected_len} arguments, got {argslen}",
+                node,
+                note_node=info.get("node"),
+                note_kind="declared")
             return
         
         params = info.get("params", [])   # ["a", "b", "c"]
@@ -1221,42 +1277,100 @@ class SemanticAnalysis(SemanticBase):
         ordered = []
         named = {}
         positional = []
+        conflict = False
+        seen_named = False
 
         for arg in args:
             t = arg.get("type")
             if t == "PIPE_ARG":
+                if seen_named:
+                    self.error(
+                        "Positional argument follows named argument", arg["value"] if "value" in arg else arg)
+                    conflict = True
+                    continue
                 positional.append(arg["value"])
             elif t == "NAMED_ARG":
+                seen_named = True
                 named[arg["name"]] = arg["value"]
             else:
+                if seen_named:
+                    self.error(
+                        "Positional argument follows named argument", arg)
+                    conflict = True
+                    continue
                 positional.append(arg)
 
         for i, arg in enumerate(positional):
             if i >= len(params):
-                self.error(f"Too many positional arguments for '{func_name}'", arg)
+                self.error(f"Too many positional arguments for '{func_name}'", arg,
+                        note_node=info.get("node"), note_kind="declared")
+                conflict = True
                 break
             name = params[i]
             if name in named:
-                self.error(f"Parameter '{name}' specified both positionally and by name", arg)
+                combined = {
+                    "type": "COMBINED_ERROR",
+                    "error_positions": [
+                        {"line": arg.get("line"), "col": arg.get("col"),
+                        "end_col": arg.get("end_col", arg.get("col", 0) + 1)},
+                        {"line": named[name].get("line"), "col": named[name].get("col"),
+                        "end_col": named[name].get("end_col", named[name].get("col", 0) + 1)},
+                    ],
+                    "error_details": [
+                        f"positional argument #{i} -> parameter '{name}'",
+                        f"named argument '{name}=...' -> same parameter '{name}'",
+                    ],
+                    "line": arg.get("line", 0),
+                    "col": arg.get("col", 0),
+                }
+                self.error(
+                    f"Parameter '{name}' specified both positionally and by name",
+                    combined,
+                    note_node=info.get("node"), note_kind="declared")
+                conflict = True
                 continue
             ordered.append((name, arg))
 
         for name, value in named.items():
             if name not in params:
-                self.error(f"Unknown parameter '{name}' in call to '{func_name}'", value)
+                self.error(f"Unknown parameter '{name}' in call to '{func_name}'", value,
+                        note_node=info.get("node"), note_kind="declared")
+                conflict = True
                 continue
             if any(n == name for n, _ in ordered):
-                self.error(f"Parameter '{name}' specified twice", value)
                 continue
             ordered.append((name, value))
 
+        if conflict:
+            node["args"] = [v for _, v in ordered]
+            return
+
         missing = [p for p in params if p not in dict(ordered)]
         if missing:
-            self.error(f"Function '{func_name}' missing arguments: {', '.join(missing)}", node)
+            self.error(
+                f"Function '{func_name}' missing arguments: {', '.join(missing)}",
+                node,
+                note_node=info.get("node"), note_kind="declared")
             return
 
         for _, value in ordered:
             self.check(value)
+
+        param_types = info.get("param_types", [])
+        for i, (pname, value) in enumerate(ordered):
+            if i >= len(param_types):
+                break
+            expected = param_types[i]
+            if expected is None:
+                continue    # у параметра нет аннотации - не проверяем.
+            actual = self.get_operand_type(value)
+            if not self._is_assignable(actual, expected):
+                self.error(
+                    f"Function '{func_name}' parameter '{pname}' expects "
+                    f"{self._format_type(expected)}, got {self._format_type(actual)}",
+                    value,
+                    note_node=info.get("node"),
+                    note_kind="declared")
 
         node["args"] = [v for _, v in ordered]
 
@@ -1280,15 +1394,29 @@ class SemanticAnalysis(SemanticBase):
             self.error(f"Function '{func_name}' not in registry (internal error)", node)
             return
 
-        existing = self.functions[func_name].get("return_type")
+        info = self.functions[func_name]
+        declared_ret = info.get("declared_ret_set")
 
-        # ещё не было ни одного return просто ставим.
-        if existing is None or existing == {"ANY"}:
-            self.functions[func_name]["return_type"] = set(return_type)
+        if declared_ret is not None:
+            # строгая проверка: возвращаемое должно быть присваиваемо declared.
+            if not self._is_assignable(return_type, declared_ret):
+                self.error(
+                    f"Function '{func_name}' declared to return "
+                    f"{self._format_type(declared_ret)}, but returns "
+                    f"{self._format_type(return_type)}",
+                    node,
+                    note_node=info.get("node"),
+                    note_kind="declared")
+            # return_type функции фиксирован declared_ret.
             return
 
-        # объединяем с тем, что уже было.
-        self.functions[func_name]["return_type"] = existing | return_type
+        # мягкий режим: как раньше, объединяем.
+        existing = info.get("return_type")
+        if existing is None or existing == {"ANY"}:
+            info["return_type"] = set(return_type)
+            return
+        info["return_type"] = existing | return_type
+
 
 
     def check_global(self, node):
@@ -1458,35 +1586,50 @@ class SemanticAnalysis(SemanticBase):
     def check_vardeclaration(self, node):
         self.check(node["value"])
         name = node["name"]
-        
+
         if self.current_scope().has(name):
             existing_info, _ = self.lookup(name)
             declared_node = existing_info.get("node") if existing_info else None
             self.error(f"Variable '{name}' is already declared", node, note_node=declared_node)
             return
-        
-        # используем путь вместо простого имени области видимости.
-        # это неграмотно, но что поделать, если мой ассемблер линкует по меткам имен.
-        # будем генерировать индекс тогда.
+
+        value_type = self.get_operand_type(node["value"]) if node.get("value") else {"ANY"}
+
+        declared = node.get("declared_type")
+        declared_set = None
+        if declared is not None:
+            if not self._validate_declared_type(declared):
+                declared_set = {"ERROR"}
+            else:
+                declared_set, _ = self._resolve_declared_type(declared)
+                if not self._is_assignable(value_type, declared_set):
+                    self.error(
+                        f"Cannot assign {self._format_type(value_type)} to variable '{name}' "
+                        f"of declared type {self._format_type(declared_set)}",
+                        node["value"] if node.get("value") else node)
+                if (node.get("value") and "items" in node["value"]
+                      and declared.get("name", "").lower() == "array"):
+                    self._check_arr_literal_vs_declared(node["value"], declared)
 
         scope_path = self.get_scope_path()
         node["alias"] = f"{scope_path}${name}"
-        
+
         info = {
-            "type": self.get_operand_type(node["value"]) if node.get("value") else {"ANY"},
+            "type": declared_set if declared_set is not None else value_type,
+            "declared_type": declared,
+            "declared_type_set": declared_set,
             "node": node,
             "usage": 0,
             "readonly": False,
             "scope_name": self.current_scope().name,
             "error_data": {
-                "last_assigned_at":  node if node.get("value") else None,
+                "last_assigned_at": node if node.get("value") else None,
                 "last_used_at": None,
                 "modified_at": []
             }
         }
         self.current_scope().variables[name] = info
         self._annotate(node, info["type"])
-
 
 
     def check_incdec(self, node):
@@ -1526,18 +1669,39 @@ class SemanticAnalysis(SemanticBase):
     def check_constdeclaration(self, node):
         self.check(node["value"])
         name = node["name"]
-        
+
         if self.current_scope().has(name):
             existing_info, _ = self.lookup(name)
             declared_node = existing_info.get("node") if existing_info else None
             self.error(f"Constant '{name}' is already declared", node, note_node=declared_node)
             return
-        
-        scope_path = self.get_scope_path()  # путь к константе.
+
+        value_type = self.get_operand_type(node["value"]) if node.get("value") else {"ANY"}
+
+        declared = node.get("declared_type")
+        declared_set = None
+        if declared is not None:
+            if not self._validate_declared_type(declared):
+                declared_set = {"ERROR"}
+            else:
+                declared_set, _ = self._resolve_declared_type(declared)
+                if not self._is_assignable(value_type, declared_set):
+                    self.error(
+                        f"Cannot assign {self._format_type(value_type)} to constant '{name}' "
+                        f"of declared type {self._format_type(declared_set)}",
+                        node["value"] if node.get("value") else node)
+                if (node.get("value") and "items" in node["value"]
+                      and declared.get("name", "").lower() == "array"):
+                    self._check_arr_literal_vs_declared(node["value"], declared)
+
+        scope_path = self.get_scope_path()
         node["alias"] = f"{scope_path}${name}"
-        
+
         info = {
             "type": self.get_operand_type(node["value"]) if node.get("value") else {"ANY"},
+            "type": declared_set if declared_set is not None else value_type,
+            "declared_type": declared,
+            "declared_type_set": declared_set,
             "node": node,
             "usage": 0,
             "readonly": True,
@@ -1557,7 +1721,6 @@ class SemanticAnalysis(SemanticBase):
                 "target": value.get("__fnref_target__"),
                 "arity": value.get("__fnref_arity__", 0),
             }
-
 
 
     def post_processing(self):

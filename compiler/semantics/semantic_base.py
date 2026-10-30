@@ -6,6 +6,7 @@ import json
 
 CALLABLE_TYPES = {"FNREF"}
 ARRAY_TYPES = {"ARRAY", "BOOLARRAY", "INTARRAY", "FLOATARRAY"}
+ARRAY_TYPES = {"ARRAY", "BOOLARRAY", "FLOATARRAY"}
 
 INTERNAL = {
  "NUMERIC": ["NUMBER", "FLOAT"],
@@ -21,11 +22,17 @@ INTERNAL = {
 
  "ARRAY": ["ARRAY"],
  "BOOLARRAY": ["BOOLARRAY"],
- "INTARRAY": ["INTARRAY"],
  "FLOATARRAY": ["FLOATARRAY"],
- "ALLARRAY": ["ARRAY", "INTARRAY", "BOOLARRAY", "FLOATARRAY"],
+ "ALLARRAY": ["ARRAY", "BOOLARRAY", "FLOATARRAY"],
+ "NATIVE": ["NATIVEOBJ"],
 
  "FNREF": ["FNREF"],
+}
+
+KNOWN_TYPES = {
+        "int", "integer", "float", "str", "string", "bool", "boolean",
+        "null", "any", "fnref", "floatarray", "boolarray", "array", "dict",
+        "nativeobj",
 }
 
 
@@ -277,6 +284,94 @@ class SemanticBase:
         self.error(f"Unsupported default value: {value!r}", {"line": line, "col": col})
         return None
 
+
+    def _validate_declared_type(self, node):
+        # рекурсивно проверяет, что все имена в DECLARED_TYPE известны.
+        name = node.get("name", "").lower()
+        if name not in KNOWN_TYPES:
+            self.error(f"Unknown type '{node.get('name')}'", node)
+            return False
+        ok = True
+        for arg in node.get("args", []):
+            if not self._validate_declared_type(arg):
+                ok = False
+        return ok
+
+
+    def _is_assignable(self, actual, expected):
+        if "ANY" in actual or "ANY" in expected:
+            return True
+        if "ERROR" in actual:
+            return True
+        actual_norm = set(actual)
+        if "NUMBER" in actual_norm and "FLOAT" in expected:
+            actual_norm.discard("NUMBER")
+            actual_norm.add("FLOAT")
+        if "FLOATARRAY" in actual_norm and "ARRAY" in expected:
+            actual_norm.discard("FLOATARRAY")
+            actual_norm.add("ARRAY")
+        if "BOOLARRAY" in actual_norm and "ARRAY" in expected:
+            actual_norm.discard("BOOLARRAY")
+            actual_norm.add("ARRAY")
+        return actual_norm.issubset(expected)
+
+    def _check_arr_literal_vs_declared(self, value_node, declared_node):
+        name = declared_node.get("name", "").lower()
+        if name != "array":
+            return True
+        if not declared_node.get("args"):
+            return True
+        elem_decl = declared_node["args"][0]
+        elem_set, _ = self._resolve_declared_type(elem_decl)
+        items = value_node.get("items", [])
+        for it in items:
+            it_t = self.get_operand_type(it)
+            if not self._is_assignable(it_t, elem_set):
+                self.error(
+                    f"Array element of type {self._format_type(it_t)} "
+                    f"is not assignable to declared element type "
+                    f"{self._format_type(elem_set)}",
+                    it)
+                return False
+            if (elem_decl.get("name", "").lower() == "array" and "items" in it):
+                self._check_arr_literal_vs_declared(it, elem_decl)
+        return True
+
+    def _resolve_declared_type(self, node):
+        # DECLARED_TYPE -> (множество внутренних типов, узел для вложенности).
+        name = node.get("name", "").lower()
+        args = node.get("args", [])
+
+        if not args:
+            base = {
+                "int": {"NUMBER"},
+                "integer": {"NUMBER"},
+                "float": {"FLOAT"},
+                "str": {"STRING"},
+                "string": {"STRING"},
+                "bool": {"BOOL"},
+                "boolean": {"BOOL"},
+                "null": {"NULL"},
+                "any": {"ANY"},
+                "fnref": {"FNREF"},
+                "floatarray": {"FLOATARRAY"},
+                "boolarray": {"BOOLARRAY"},
+                "array": {"ARRAY"},
+                "dict": {"DICT"},
+                "nativeobj": {"NATIVEOBJ"},
+            }.get(name)
+            if base is None:
+                return {"ANY"}, node
+            return set(base), node
+
+        if name == "array" and len(args) == 1:
+            return {"ARRAY"}, node
+
+        if name == "dict" and len(args) == 2:
+            return {"DICT"}, node
+
+        return {"ANY"}, node
+
     def _get_note_for_id(self, node):
         # возвращает (note_node, note_kind) для ID-узла.
         if node.get("type") != "ID":
@@ -331,7 +426,7 @@ class SemanticBase:
         if len(type_set) == 1:
             return next(iter(type_set))
         for t in ("DICT", "STRING", "FLOAT", "NUMBER", "BOOL", "NULL",
-                "ARRAY", "INTARRAY", "FLOATARRAY", "BOOLARRAY", "FNREF"):
+                "ARRAY", "FLOATARRAY", "BOOLARRAY", "FNREF"):
             if t in type_set:
                 return t
         return "ANY"
@@ -362,7 +457,6 @@ class SemanticBase:
         mapping = {
             'a': "ARRAY (any type)",
             'b': "BOOLARRAY",
-            'i': "INTARRAY",
             'f': "FLOATARRAY"
         }
         return mapping.get(array_type, "UNKNOWN")
@@ -371,7 +465,6 @@ class SemanticBase:
         mapping = {
             'a': "ARRAY",
             'b': "BOOLARRAY",
-            'i': "INTARRAY",
             'f': "FLOATARRAY"
         }
         return mapping.get(array_type, "ARRAY")

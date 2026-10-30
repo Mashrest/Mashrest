@@ -7,16 +7,14 @@
 // Forward declarations.
 typedef struct Value Value;
 typedef struct Array Array;
-typedef struct IntArray IntArray;
 typedef struct FloatArray FloatArray;
 typedef struct BoolArray BoolArray;
 
 uint32_t array_size(Value v);
 
 Value array_get(Value obj, uint32_t index);
-int64_t iarray_get(Value obj, int index);
-double farray_get(Value obj, int index);
-uint8_t barray_get(Value obj, int index);
+double farray_get(Value obj, uint32_t index);
+uint8_t barray_get(Value obj, uint32_t index);
 
 uint32_t string_chars(Value v);
 uint32_t string_bytes(Value v);
